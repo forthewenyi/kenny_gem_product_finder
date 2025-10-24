@@ -1,6 +1,8 @@
+'use client'
+
+import { useState } from 'react'
 import { Product } from '@/types'
 import TierBadge from './TierBadge'
-import DurabilityScore from './DurabilityScore'
 
 interface ProductCardProps {
   product: Product
@@ -10,20 +12,47 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onClick, comparisonMode = false, isSelected = false }: ProductCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  // Helper function to get gradient color based on durability score
+  const getScoreGradient = (score: number) => {
+    if (score >= 80) return 'from-green-50 to-green-100'
+    if (score >= 60) return 'from-blue-50 to-blue-100'
+    return 'from-yellow-50 to-yellow-100'
+  }
+
+  // Helper function to get progress ring color
+  const getProgressColor = (score: number) => {
+    if (score >= 80) return '#10b981' // green-500
+    if (score >= 60) return '#3b82f6' // blue-500
+    return '#eab308' // yellow-500
+  }
+
+  // Truncate key insight to max 80 chars
+  const getKeyInsight = (text: string) => {
+    if (text.length <= 80) return text
+    return text.slice(0, 77) + '...'
+  }
+
+  // Calculate circle progress
+  const score = product.durability_data?.score || 0
+  const circumference = 2 * Math.PI * 36 // radius = 36
+  const strokeDashoffset = circumference - (score / 100) * circumference
+
   return (
     <div
       onClick={onClick}
-      className={`border-2 rounded-lg p-6 hover:shadow-lg transition-all cursor-pointer bg-white relative ${
+      className={`border rounded-xl p-8 hover:shadow-xl transition-all duration-300 cursor-pointer bg-white relative ${
         isSelected
-          ? 'border-blue-500 ring-2 ring-blue-200 shadow-lg'
+          ? 'border-blue-500 ring-2 ring-blue-200 shadow-xl'
           : 'border-gray-200'
       } ${comparisonMode ? 'hover:border-blue-300' : ''}`}
     >
       {/* Comparison Mode Indicator */}
       {comparisonMode && (
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-3 right-3 z-10">
           <div
-            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
               isSelected
                 ? 'bg-blue-600 border-blue-600'
                 : 'bg-white border-gray-300'
@@ -37,128 +66,147 @@ export default function ProductCard({ product, onClick, comparisonMode = false, 
           </div>
         </div>
       )}
-      {/* Tier Badge */}
-      <div className="mb-3 flex items-start justify-between">
-        <TierBadge tier={product.tier} />
-        {/* Durability Score Badge */}
-        {product.durability_data && (
-          <DurabilityScore data={product.durability_data} size="sm" />
-        )}
+
+      {/* Tier Badge - Top Right Corner */}
+      <div className="absolute top-3 left-3">
+        <TierBadge tier={product.tier} size="sm" />
       </div>
 
-      {/* Product Name and Brand */}
-      <h3 className="text-xl font-bold text-gray-900 mb-1">{product.name}</h3>
-      <p className="text-sm text-gray-600 mb-4">{product.brand}</p>
-
-      {/* Value Metrics - The Star of the Show! */}
-      <div className="bg-blue-50 rounded-lg p-4 mb-4">
-        <div className="text-2xl font-bold text-blue-900 mb-2">
-          ${product.value_metrics.upfront_price}
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <div className="text-gray-600">Lifespan</div>
-            <div className="font-semibold text-gray-900">
-              {product.value_metrics.expected_lifespan_years} years
-            </div>
-          </div>
-          <div>
-            <div className="text-gray-600">Cost/Year</div>
-            <div className="font-semibold text-gray-900">
-              ${product.value_metrics.cost_per_year}
-            </div>
-          </div>
-        </div>
-        <div className="mt-2 text-xs text-gray-500">
-          Just ${product.value_metrics.cost_per_day}/day
-        </div>
-      </div>
-
-      {/* Why It's a Gem */}
-      <div className="mb-4">
-        <div className="text-xs font-semibold text-gray-500 uppercase mb-1">
-          Why it's a gem
-        </div>
-        <p className="text-sm text-gray-700 line-clamp-2">
-          {product.why_its_a_gem}
-        </p>
-      </div>
-
-      {/* Key Features */}
-      <div className="mb-4">
-        <ul className="space-y-1">
-          {product.key_features.slice(0, 3).map((feature, idx) => (
-            <li key={idx} className="text-sm text-gray-700 flex items-start">
-              <span className="text-green-500 mr-2">✓</span>
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Best For */}
-      <div className="text-sm text-gray-600 italic mb-4">
-        Best for: {product.best_for}
-      </div>
-
-      {/* Durability Section */}
+      {/* HERO ELEMENT - Durability Score */}
       {product.durability_data && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-gray-900">
-                {product.durability_data.score}
-              </span>
-              <div className="text-left">
-                <div className="text-xs font-semibold text-gray-500 uppercase">
-                  Durability Score
-                </div>
-                <div className="text-xs text-gray-500">
-                  out of 100
-                </div>
+        <div className="flex flex-col items-center mb-6 mt-8">
+          <div className={`relative w-20 h-20 bg-gradient-to-br ${getScoreGradient(score)} rounded-full flex items-center justify-center`}>
+            {/* SVG Circular Progress Ring */}
+            <svg className="absolute inset-0 w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+              <circle
+                cx="40"
+                cy="40"
+                r="36"
+                stroke="#e5e7eb"
+                strokeWidth="4"
+                fill="none"
+              />
+              <circle
+                cx="40"
+                cy="40"
+                r="36"
+                stroke={getProgressColor(score)}
+                strokeWidth="4"
+                fill="none"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                className="transition-all duration-500"
+              />
+            </svg>
+            {/* Score Number */}
+            <div className="relative z-10 text-center">
+              <span className="text-5xl font-bold text-gray-900">{score}</span>
+              <span className="text-base text-gray-500">/100</span>
+            </div>
+          </div>
+          <div className="text-xs text-gray-500 mt-2 font-medium">Durability Score</div>
+        </div>
+      )}
+
+      {/* Product Name • Brand */}
+      <h3 className="text-2xl font-semibold text-gray-900 mb-3 text-center">
+        {product.name} <span className="text-gray-400">•</span> <span className="text-gray-600">{product.brand}</span>
+      </h3>
+
+      {/* Value Summary - Single Line */}
+      <div className="text-lg text-gray-700 text-center mb-4">
+        ${product.value_metrics.upfront_price} <span className="text-gray-400">•</span> {product.value_metrics.expected_lifespan_years} years <span className="text-gray-400">•</span> ${product.value_metrics.cost_per_year}/year
+      </div>
+
+      {/* Key Insight */}
+      <p className="text-base text-gray-600 italic text-center mb-4 leading-relaxed">
+        {getKeyInsight(product.why_its_a_gem)}
+      </p>
+
+      {/* Expandable Details Button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          setIsExpanded(!isExpanded)
+        }}
+        className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors flex items-center justify-center gap-1"
+      >
+        {isExpanded ? 'Hide details ↑' : 'Show details ↓'}
+      </button>
+
+      {/* Expandable Details Section */}
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isExpanded ? 'max-h-[1000px] opacity-100 mt-4' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="pt-4 border-t border-gray-200 space-y-4">
+          {/* Key Features */}
+          {product.key_features && product.key_features.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Key Features</h4>
+              <ul className="space-y-1.5">
+                {product.key_features.slice(0, 5).map((feature, idx) => (
+                  <li key={idx} className="text-sm text-gray-700 flex items-start">
+                    <span className="text-green-500 mr-2 mt-0.5">✓</span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Durability Details */}
+          {product.durability_data && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Durability Details</h4>
+              <div className="space-y-1.5">
+                <p className="text-sm text-gray-700">
+                  {product.durability_data.still_working_after_5years_percent}% still working after 5+ years
+                </p>
+                <p className="text-sm text-gray-700">
+                  Average lifespan: {product.durability_data.average_lifespan_years} years
+                </p>
+                <p className="text-sm text-gray-700">
+                  Based on {product.durability_data.total_user_reports} user reports
+                </p>
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="space-y-2 mb-3">
-            <p className="text-sm text-gray-700">
-              📊 {product.durability_data.still_working_after_5years_percent}% still working after 5+ years
-            </p>
-            <p className="text-sm text-gray-700">
-              ⏱️ Average lifespan: {product.durability_data.average_lifespan_years} years
-            </p>
-            <p className="text-sm text-gray-700">
-              👥 Based on {product.durability_data.total_user_reports} user reports
-            </p>
-          </div>
-
-          {product.durability_data.common_failure_points &&
+          {/* Common Failure Points */}
+          {product.durability_data?.common_failure_points &&
            product.durability_data.common_failure_points.length > 0 && (
-            <div className="mt-3 bg-orange-50 rounded-lg p-3">
-              <p className="text-xs font-semibold text-orange-800 mb-2">
-                Common issues reported:
-              </p>
+            <div className="border border-gray-200 rounded-lg p-3">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Common Issues Reported</h4>
               <ul className="space-y-1">
                 {product.durability_data.common_failure_points.slice(0, 3).map((issue, idx) => (
-                  <li key={idx} className="text-xs text-orange-700 flex items-start">
-                    <span className="mr-2">⚠️</span>
+                  <li key={idx} className="text-sm text-gray-700 flex items-start">
+                    <span className="mr-2 mt-0.5">⚠️</span>
                     <span>{issue}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
-        </div>
-      )}
 
-      {/* Trade-offs */}
-      {product.trade_offs && product.trade_offs.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <div className="text-xs text-gray-500">
-            ⚠️ {product.trade_offs[0]}
-          </div>
+          {/* Trade-offs */}
+          {product.trade_offs && product.trade_offs.length > 0 && (
+            <div className="border border-gray-200 rounded-lg p-3">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Trade-offs</h4>
+              <ul className="space-y-1">
+                {product.trade_offs.map((tradeoff, idx) => (
+                  <li key={idx} className="text-sm text-gray-700 flex items-start">
+                    <span className="mr-2 mt-0.5">⚖️</span>
+                    <span>{tradeoff}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

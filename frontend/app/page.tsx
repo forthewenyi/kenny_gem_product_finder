@@ -152,6 +152,50 @@ export default function Home() {
               </div>
             )}
 
+            {/* Floating Comparison Bar - Bottom */}
+            {comparisonMode && compareProducts.length > 0 && (
+              <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-blue-300 shadow-lg z-40 py-4 px-6 animate-fadeInUp">
+                <div className="max-w-6xl mx-auto flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="font-semibold text-gray-900">
+                      {compareProducts.length} product{compareProducts.length !== 1 ? 's' : ''} selected
+                    </span>
+                    <div className="flex gap-2">
+                      {compareProducts.map((product, idx) => (
+                        <div key={idx} className="bg-blue-100 text-blue-900 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                          <span className="truncate max-w-[150px]">{product.name}</span>
+                          <button
+                            onClick={() => toggleCompare(product)}
+                            className="text-blue-700 hover:text-blue-900 font-bold"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {compareProducts.length >= 2 && (
+                      <button
+                        onClick={() => {
+                          document.getElementById('comparison-view')?.scrollIntoView({ behavior: 'smooth' })
+                        }}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                      >
+                        Compare Now
+                      </button>
+                    )}
+                    <button
+                      onClick={clearComparison}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Educational Insights */}
             {results.educational_insights.length > 0 && (
               <div className="max-w-6xl mx-auto mb-8">
@@ -170,21 +214,23 @@ export default function Home() {
 
             {/* Before You Buy - Alternatives Section */}
             {results.before_you_buy && (
-              <div className="max-w-6xl mx-auto">
-                <BeforeYouBuy data={results.before_you_buy} />
+              <div className="max-w-6xl mx-auto mb-16">
+                <div className="border-2 border-yellow-400 rounded-xl p-6 bg-yellow-50">
+                  <BeforeYouBuy data={results.before_you_buy} />
+                </div>
               </div>
             )}
 
             {/* BEST Tier */}
             {results.results.best.length > 0 && (
-              <div className="max-w-6xl mx-auto mb-12">
-                <div className="mb-6">
+              <div className="max-w-6xl mx-auto mb-16">
+                <div className="mb-8 flex items-center gap-3">
                   <TierBadge tier="best" size="lg" />
-                  <p className="text-sm text-gray-600 mt-2">
+                  <span className="text-sm text-gray-600">
                     Lifetime investment • 15-30+ years • Heirloom quality
-                  </p>
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {results.results.best.map((product, idx) => (
                     <ProductCard
                       key={idx}
@@ -200,14 +246,14 @@ export default function Home() {
 
             {/* BETTER Tier */}
             {results.results.better.length > 0 && (
-              <div className="max-w-6xl mx-auto mb-12">
-                <div className="mb-6">
+              <div className="max-w-6xl mx-auto mb-16">
+                <div className="mb-8 flex items-center gap-3">
                   <TierBadge tier="better" size="lg" />
-                  <p className="text-sm text-gray-600 mt-2">
+                  <span className="text-sm text-gray-600">
                     Best value • 8-15 years • First-time homeowners
-                  </p>
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {results.results.better.map((product, idx) => (
                     <ProductCard
                       key={idx}
@@ -223,14 +269,14 @@ export default function Home() {
 
             {/* GOOD Tier */}
             {results.results.good.length > 0 && (
-              <div className="max-w-6xl mx-auto mb-12">
-                <div className="mb-6">
+              <div className="max-w-6xl mx-auto mb-16">
+                <div className="mb-8 flex items-center gap-3">
                   <TierBadge tier="good" size="lg" />
-                  <p className="text-sm text-gray-600 mt-2">
+                  <span className="text-sm text-gray-600">
                     Budget-friendly • 2-5 years • Students & renters
-                  </p>
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {results.results.good.map((product, idx) => (
                     <ProductCard
                       key={idx}
@@ -370,9 +416,9 @@ export default function Home() {
               <p className="text-lg text-gray-600 mb-6">{selectedProduct.brand}</p>
 
               {/* Durability Score Breakdown */}
-              {selectedProduct.durability_score && (
+              {selectedProduct.durability_data && (
                 <div className="mb-6">
-                  <DurabilityScore score={selectedProduct.durability_score} showBreakdown={true} size="md" />
+                  <DurabilityScore data={selectedProduct.durability_data} showBreakdown={true} size="md" />
                 </div>
               )}
 

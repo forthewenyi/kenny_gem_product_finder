@@ -1,7 +1,7 @@
-import { ProductTier } from '@/types'
+import { TierLevel } from '@/types'
 
 interface TierBadgeProps {
-  tier: ProductTier
+  tier: TierLevel
   size?: 'sm' | 'md' | 'lg'
 }
 
