@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(python test_api.py:*)",
+      "Bash(awk:*)",
+      "Bash(xargs kill:*)",
+      "Bash(python test_debug.py:*)",
+      "Bash(python -m uvicorn:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

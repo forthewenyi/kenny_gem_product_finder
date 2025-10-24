@@ -1,0 +1,26 @@
+# FastAPI and server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+
+# Data validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# LangChain and AI
+langchain>=0.1.0
+langchain-openai>=0.0.3
+langchain-community>=0.0.13
+openai>=1.10.0
+
+# Tavily search tool
+tavily-python>=0.3.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# CORS and HTTP
+httpx>=0.26.0
+
+# Utilities
+python-json-logger>=2.0.7

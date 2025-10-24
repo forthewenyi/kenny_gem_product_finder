@@ -1,0 +1,44 @@
+{
+  "test_cases": [
+    {
+      "name": "Beginner Cast Iron",
+      "query": {
+        "query": "I need a cast iron skillet that won't rust easily, I'm a beginner",
+        "context": {
+          "experience_level": "beginner"
+        }
+      }
+    },
+    {
+      "name": "Chef's Knife for Homeowner",
+      "query": {
+        "query": "Just bought my first house, need a quality chef's knife that will last",
+        "context": {
+          "experience_level": "intermediate",
+          "life_stage": "first home"
+        }
+      }
+    },
+    {
+      "name": "Lifetime Dutch Oven",
+      "query": {
+        "query": "I'm passionate about cooking and want a Dutch oven I can pass down to my kids",
+        "context": {
+          "experience_level": "advanced",
+          "life_stage": "lifetime investment"
+        }
+      }
+    },
+    {
+      "name": "Student Budget Pan",
+      "query": {
+        "query": "College student needs a pan that won't warp, budget is tight",
+        "context": {
+          "experience_level": "beginner",
+          "life_stage": "student",
+          "budget": "under $50"
+        }
+      }
+    }
+  ]
+}
