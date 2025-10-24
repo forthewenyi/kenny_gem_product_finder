@@ -6,8 +6,8 @@ from typing import List, Optional, Dict, Any
 from enum import Enum
 
 
-class ProductTier(str, Enum):
-    """Product tier classification"""
+class TierLevel(str, Enum):
+    """Tier level classification"""
     GOOD = "good"
     BETTER = "better"
     BEST = "best"
@@ -47,15 +47,52 @@ class WebSource(BaseModel):
     relevance_score: Optional[float] = None
 
 
+class DurabilityData(BaseModel):
+    """Durability data from user reports and research"""
+    score: int = Field(..., ge=0, le=100, description="Overall durability score (0-100)")
+    average_lifespan_years: float = Field(..., description="Average lifespan based on user reports")
+    still_working_after_5years_percent: int = Field(..., ge=0, le=100, description="% still working after 5 years")
+    total_user_reports: int = Field(default=0, description="Number of user reports aggregated")
+    common_failure_points: List[str] = Field(default_factory=list, description="Common points of failure")
+    repairability_score: int = Field(..., ge=0, le=100, description="How easy to repair (0-100)")
+    material_quality_indicators: List[str] = Field(default_factory=list, description="Quality indicators from materials")
+    data_sources: List[str] = Field(default_factory=list, description="Reddit threads, review sites, etc.")
+
+
+class AlternativeSolution(BaseModel):
+    """Non-purchase solution to solve the problem"""
+    problem: str = Field(..., description="The problem the user is trying to solve")
+    consumer_solution: str = Field(..., description="What people typically buy")
+    consumer_cost: float = Field(..., description="Cost of consumer solution")
+    consumer_issues: List[str] = Field(..., description="Problems with buying approach")
+    your_solution: str = Field(..., description="Non-purchase or cheaper alternative")
+    your_cost: float = Field(..., description="Cost of your solution")
+    why_better: str = Field(..., description="Why this approach is better")
+    how_to: str = Field(..., description="Step-by-step instructions")
+    savings_per_year: float = Field(..., description="Calculated savings")
+    when_to_buy_instead: Optional[str] = Field(None, description="When the purchase makes sense")
+
+
+class BeforeYouBuy(BaseModel):
+    """Section showing alternatives before pushing products"""
+    title: str = Field(default="Before You Buy...", description="Section title")
+    subtitle: str = Field(default="Let's solve the problem first", description="Subtitle")
+    alternatives: List[AlternativeSolution] = Field(..., description="Non-purchase solutions")
+    educational_insight: str = Field(..., description="Why we show this")
+
+
 class Product(BaseModel):
     """Kitchen product with full details"""
     name: str = Field(..., description="Product name and model")
     brand: str
-    tier: ProductTier
+    tier: TierLevel
     category: str = Field(..., description="e.g., chef's knife, skillet, dutch oven")
 
     # Value metrics (most important!)
     value_metrics: ValueMetrics
+
+    # Durability data (NEW!)
+    durability_data: Optional[DurabilityData] = Field(None, description="Durability data from user reports and research")
 
     # Core details
     key_features: List[str] = Field(..., description="Top 3-5 features", min_length=1)
@@ -79,10 +116,17 @@ class Product(BaseModel):
     trade_offs: Optional[List[str]] = Field(default_factory=list, description="Honest drawbacks")
 
 
+class ProductTier(BaseModel):
+    """Product tier with aggregated products and durability data"""
+    tier: TierLevel
+    products: List[Product] = Field(default_factory=list)
+    durability: Optional[DurabilityData] = Field(None, description="Aggregate durability data for this tier")
+
+
 class SearchQuery(BaseModel):
     """User search request"""
     query: str = Field(..., min_length=3, description="User's search query")
-    tier_preference: Optional[ProductTier] = None
+    tier_preference: Optional[TierLevel] = None
     max_price: Optional[float] = Field(None, gt=0)
     context: Optional[Dict[str, str]] = Field(default_factory=dict, description="User context like location, experience level")
 
@@ -96,6 +140,7 @@ class TierResults(BaseModel):
 
 class SearchResponse(BaseModel):
     """Search API response"""
+    before_you_buy: Optional[BeforeYouBuy] = Field(None, description="Alternative solutions before showing products")
     results: TierResults
     search_metadata: Dict[str, Any] = Field(..., description="Queries used, sources searched")
     processing_time_seconds: float

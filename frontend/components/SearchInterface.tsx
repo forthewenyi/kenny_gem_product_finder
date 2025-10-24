@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 interface SearchInterfaceProps {
-  onSearch: (query: string) => void
+  onSearch: (query: string, maxPrice?: number) => void
   isLoading: boolean
 }
 
@@ -16,17 +16,34 @@ const exampleQueries = [
 
 export default function SearchInterface({ onSearch, isLoading }: SearchInterfaceProps) {
   const [query, setQuery] = useState('')
+  const [maxPrice, setMaxPrice] = useState(600)
+  const [showFilters, setShowFilters] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (query.trim()) {
-      onSearch(query)
+      onSearch(query, maxPrice)
     }
   }
 
   const handleExampleClick = (example: string) => {
     setQuery(example)
-    onSearch(example)
+    onSearch(example, maxPrice)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Submit on Enter (without Shift for new line)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (query.trim()) {
+        onSearch(query, maxPrice)
+      }
+    }
+  }
+
+  const formatPrice = (price: number) => {
+    if (price >= 600) return '$600+'
+    return `$${price}`
   }
 
   return (
@@ -50,12 +67,57 @@ export default function SearchInterface({ onSearch, isLoading }: SearchInterface
           <textarea
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Describe what you're looking for... (e.g., 'I need a chef's knife that stays sharp for beginners')"
             className="w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-2xl focus:border-blue-500 focus:outline-none resize-none"
             rows={3}
             disabled={isLoading}
           />
         </div>
+
+        {/* Price Filter Toggle */}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <svg className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            {showFilters ? 'Hide' : 'Show'} Price Filter
+          </button>
+        </div>
+
+        {/* Price Range Slider */}
+        {showFilters && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Maximum Price: <span className="text-blue-600 font-semibold">{formatPrice(maxPrice)}</span>
+            </label>
+            <input
+              type="range"
+              min="20"
+              max="600"
+              step="10"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              disabled={isLoading}
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              <span>$20</span>
+              <span>$100</span>
+              <span>$200</span>
+              <span>$400</span>
+              <span>$600+</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Filter results to show products up to your budget
+            </p>
+          </div>
+        )}
+
         <button
           type="submit"
           disabled={isLoading || !query.trim()}

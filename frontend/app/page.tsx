@@ -9,21 +9,41 @@ import SearchInterface from '@/components/SearchInterface'
 import ProductCard from '@/components/ProductCard'
 import LoadingState from '@/components/LoadingState'
 import TierBadge from '@/components/TierBadge'
+import DurabilityScore from '@/components/DurabilityScore'
+import BeforeYouBuy from '@/components/BeforeYouBuy'
 
 export default function Home() {
   const [results, setResults] = useState<SearchResponse | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [comparisonMode, setComparisonMode] = useState(false)
+  const [compareProducts, setCompareProducts] = useState<Product[]>([])
 
   const searchMutation = useMutation({
-    mutationFn: (query: string) => searchProducts({ query }),
+    mutationFn: ({ query, maxPrice }: { query: string; maxPrice?: number }) =>
+      searchProducts({ query, max_price: maxPrice }),
     onSuccess: (data) => {
       setResults(data)
       setSelectedProduct(null)
+      setComparisonMode(false)
+      setCompareProducts([])
     },
   })
 
-  const handleSearch = (query: string) => {
-    searchMutation.mutate(query)
+  const handleSearch = (query: string, maxPrice?: number) => {
+    searchMutation.mutate({ query, maxPrice })
+  }
+
+  const toggleCompare = (product: Product) => {
+    if (compareProducts.find(p => p.name === product.name)) {
+      setCompareProducts(compareProducts.filter(p => p.name !== product.name))
+    } else if (compareProducts.length < 3) {
+      setCompareProducts([...compareProducts, product])
+    }
+  }
+
+  const clearComparison = () => {
+    setCompareProducts([])
+    setComparisonMode(false)
   }
 
   const allProducts = results
@@ -69,17 +89,68 @@ export default function Home() {
         {/* Results */}
         {results && !searchMutation.isPending && (
           <div className="mt-12">
-            {/* Metadata */}
+            {/* Metadata and Comparison Toggle */}
             <div className="max-w-6xl mx-auto mb-8">
               <div className="flex items-center justify-between text-sm text-gray-600">
                 <div>
                   Found {allProducts.length} products in {results.processing_time_seconds}s
+                  {results.search_metadata.cached && (
+                    <span className="ml-2 text-green-600 font-medium">⚡ Cached</span>
+                  )}
                 </div>
-                <div>
-                  Searched {results.search_metadata.sources_searched.length} sources
+                <div className="flex items-center gap-4">
+                  <span>Searched {results.search_metadata.sources_searched.length} sources</span>
+                  <button
+                    onClick={() => setComparisonMode(!comparisonMode)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      comparisonMode
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {comparisonMode ? '✓ Comparing' : 'Compare Products'}
+                  </button>
                 </div>
               </div>
             </div>
+
+            {/* Comparison Bar */}
+            {comparisonMode && (
+              <div className="max-w-6xl mx-auto mb-8">
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-blue-900">
+                        Select products to compare (max 3)
+                      </h3>
+                      <p className="text-sm text-blue-700 mt-1">
+                        {compareProducts.length === 0 && 'Click on product cards to add them'}
+                        {compareProducts.length > 0 && `${compareProducts.length} selected`}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {compareProducts.length >= 2 && (
+                        <button
+                          onClick={() => {
+                            // Scroll to comparison view
+                            document.getElementById('comparison-view')?.scrollIntoView({ behavior: 'smooth' })
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        >
+                          View Comparison
+                        </button>
+                      )}
+                      <button
+                        onClick={clearComparison}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Educational Insights */}
             {results.educational_insights.length > 0 && (
@@ -97,6 +168,13 @@ export default function Home() {
               </div>
             )}
 
+            {/* Before You Buy - Alternatives Section */}
+            {results.before_you_buy && (
+              <div className="max-w-6xl mx-auto">
+                <BeforeYouBuy data={results.before_you_buy} />
+              </div>
+            )}
+
             {/* BEST Tier */}
             {results.results.best.length > 0 && (
               <div className="max-w-6xl mx-auto mb-12">
@@ -111,7 +189,9 @@ export default function Home() {
                     <ProductCard
                       key={idx}
                       product={product}
-                      onClick={() => setSelectedProduct(product)}
+                      onClick={() => comparisonMode ? toggleCompare(product) : setSelectedProduct(product)}
+                      comparisonMode={comparisonMode}
+                      isSelected={compareProducts.some(p => p.name === product.name)}
                     />
                   ))}
                 </div>
@@ -132,7 +212,9 @@ export default function Home() {
                     <ProductCard
                       key={idx}
                       product={product}
-                      onClick={() => setSelectedProduct(product)}
+                      onClick={() => comparisonMode ? toggleCompare(product) : setSelectedProduct(product)}
+                      comparisonMode={comparisonMode}
+                      isSelected={compareProducts.some(p => p.name === product.name)}
                     />
                   ))}
                 </div>
@@ -153,7 +235,9 @@ export default function Home() {
                     <ProductCard
                       key={idx}
                       product={product}
-                      onClick={() => setSelectedProduct(product)}
+                      onClick={() => comparisonMode ? toggleCompare(product) : setSelectedProduct(product)}
+                      comparisonMode={comparisonMode}
+                      isSelected={compareProducts.some(p => p.name === product.name)}
                     />
                   ))}
                 </div>
@@ -166,6 +250,102 @@ export default function Home() {
                 <p className="text-gray-600">
                   No products found. Try a different search query.
                 </p>
+              </div>
+            )}
+
+            {/* Side-by-Side Comparison View */}
+            {compareProducts.length >= 2 && (
+              <div id="comparison-view" className="max-w-6xl mx-auto mt-12">
+                <div className="bg-white border-2 border-blue-200 rounded-2xl p-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                    Product Comparison
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="relative">
+                        <button
+                          onClick={() => toggleCompare(product)}
+                          className="absolute -top-2 -right-2 z-10 w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors flex items-center justify-center font-bold"
+                          title="Remove from comparison"
+                        >
+                          ×
+                        </button>
+                        <div className="border-2 border-gray-200 rounded-xl p-6">
+                          <div className="mb-4">
+                            <TierBadge tier={product.tier} />
+                          </div>
+                          <h3 className="font-bold text-lg mb-1">{product.name}</h3>
+                          <p className="text-sm text-gray-600 mb-4">{product.brand}</p>
+
+                          <div className="space-y-3">
+                            <div className="bg-blue-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-600">Price</div>
+                              <div className="text-xl font-bold text-blue-900">
+                                ${product.value_metrics.upfront_price}
+                              </div>
+                            </div>
+
+                            <div className="bg-green-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-600">Lifespan</div>
+                              <div className="text-xl font-bold text-green-900">
+                                {product.value_metrics.expected_lifespan_years} years
+                              </div>
+                            </div>
+
+                            <div className="bg-purple-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-600">Cost/Year</div>
+                              <div className="text-xl font-bold text-purple-900">
+                                ${product.value_metrics.cost_per_year}
+                              </div>
+                            </div>
+
+                            <div className="bg-orange-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-600">Cost/Day</div>
+                              <div className="text-xl font-bold text-orange-900">
+                                ${product.value_metrics.cost_per_day}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 pt-4 border-t">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                              Key Features:
+                            </h4>
+                            <ul className="space-y-1">
+                              {product.key_features.slice(0, 3).map((feature, i) => (
+                                <li key={i} className="text-xs text-gray-600 flex items-start">
+                                  <span className="text-green-500 mr-1">✓</span>
+                                  {feature}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {product.best_for && (
+                            <div className="mt-4 pt-4 border-t">
+                              <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                                Best for:
+                              </h4>
+                              <p className="text-xs text-gray-600">{product.best_for}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Comparison Winner */}
+                  <div className="mt-8 p-6 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
+                    <h3 className="font-bold text-yellow-900 mb-2">🏆 Best Value</h3>
+                    <p className="text-sm text-yellow-800">
+                      {compareProducts.reduce((best, current) =>
+                        current.value_metrics.cost_per_year < best.value_metrics.cost_per_year ? current : best
+                      ).name} has the lowest cost per year at ${compareProducts.reduce((best, current) =>
+                        current.value_metrics.cost_per_year < best.value_metrics.cost_per_year ? current : best
+                      ).value_metrics.cost_per_year}/year
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -188,6 +368,13 @@ export default function Home() {
                 {selectedProduct.name}
               </h2>
               <p className="text-lg text-gray-600 mb-6">{selectedProduct.brand}</p>
+
+              {/* Durability Score Breakdown */}
+              {selectedProduct.durability_score && (
+                <div className="mb-6">
+                  <DurabilityScore score={selectedProduct.durability_score} showBreakdown={true} size="md" />
+                </div>
+              )}
 
               {/* Value Metrics */}
               <div className="bg-blue-50 rounded-xl p-6 mb-6">

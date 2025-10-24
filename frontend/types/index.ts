@@ -1,6 +1,6 @@
 // TypeScript types matching the backend API
 
-export type ProductTier = 'good' | 'better' | 'best'
+export type TierLevel = 'good' | 'better' | 'best'
 
 export interface ValueMetrics {
   upfront_price: number
@@ -16,12 +16,24 @@ export interface WebSource {
   relevance_score?: number | null
 }
 
+export interface DurabilityData {
+  score: number // 0-100
+  average_lifespan_years: number
+  still_working_after_5years_percent: number // 0-100
+  total_user_reports: number
+  common_failure_points: string[]
+  repairability_score: number // 0-100
+  material_quality_indicators: string[]
+  data_sources: string[]
+}
+
 export interface Product {
   name: string
   brand: string
-  tier: ProductTier
+  tier: TierLevel
   category: string
   value_metrics: ValueMetrics
+  durability_data?: DurabilityData | null
   key_features: string[]
   materials: string[]
   why_its_a_gem: string
@@ -35,6 +47,32 @@ export interface Product {
   trade_offs: string[]
 }
 
+export interface ProductTier {
+  tier: TierLevel
+  products: Product[]
+  durability?: DurabilityData | null
+}
+
+export interface AlternativeSolution {
+  problem: string
+  consumer_solution: string
+  consumer_cost: number
+  consumer_issues: string[]
+  your_solution: string
+  your_cost: number
+  why_better: string
+  how_to: string
+  savings_per_year: number
+  when_to_buy_instead?: string | null
+}
+
+export interface BeforeYouBuy {
+  title: string
+  subtitle: string
+  alternatives: AlternativeSolution[]
+  educational_insight: string
+}
+
 export interface TierResults {
   good: Product[]
   better: Product[]
@@ -42,6 +80,7 @@ export interface TierResults {
 }
 
 export interface SearchResponse {
+  before_you_buy?: BeforeYouBuy | null
   results: TierResults
   search_metadata: {
     sources_searched: string[]
@@ -53,7 +92,7 @@ export interface SearchResponse {
 
 export interface SearchQuery {
   query: string
-  tier_preference?: ProductTier
+  tier_preference?: TierLevel
   max_price?: number
   context?: Record<string, string>
 }

@@ -16,11 +16,13 @@ from models import (
     ErrorResponse,
     TierResults,
     Product,
-    ProductTier,
+    TierLevel,
     WebSource
 )
 # from agent_service import get_agent  # Using simple_search instead for now
 from simple_search import get_simple_search
+from database_service import DatabaseService
+from durability_scorer import get_durability_scorer, DurabilityScore as DurabilityScoreCalc
 
 # Load environment variables
 load_dotenv()
@@ -31,6 +33,14 @@ app = FastAPI(
     description="AI-powered vertical search for kitchen products organized in Good/Better/Best tiers",
     version="0.1.0"
 )
+
+# Initialize database service
+try:
+    db_service = DatabaseService()
+    print("✓ Database caching enabled")
+except Exception as e:
+    print(f"⚠️  Database caching disabled: {e}")
+    db_service = None
 
 # CORS middleware - configure for production later
 app.add_middleware(
@@ -130,10 +140,30 @@ async def search_products(query: SearchQuery):
     """
     AI-powered search using LangChain agent with Tavily tool.
     Returns products organized in Good/Better/Best tiers.
+    Checks Supabase cache first to reduce API calls.
     """
     start_time = time.time()
 
     try:
+        # Step 1: Check database cache first (TEMPORARILY DISABLED FOR TESTING)
+        if False and db_service:  # Disabled temporarily
+            print(f"🔍 Checking cache for query: '{query.query}'")
+            cached_result = await db_service.get_cached_search(
+                query=query.query,
+                tier_preference=query.tier_preference,
+                max_price=query.max_price
+            )
+
+            if cached_result:
+                print("✓ Cache hit! Returning cached results")
+                cached_result.search_metadata["cached"] = True
+                return cached_result
+
+            print("✗ Cache miss. Performing fresh search...")
+
+        print("🔍 Cache disabled - performing fresh search...")
+
+        # Step 2: No cache hit - perform fresh search
         # Get the search instance
         search = get_simple_search()
 
@@ -146,19 +176,69 @@ async def search_products(query: SearchQuery):
         # Parse agent output into Product objects
         tier_results = _parse_tier_results(agent_result)
 
+        # Parse before_you_buy section if present
+        from models import BeforeYouBuy, AlternativeSolution
+        before_you_buy = None
+        if "before_you_buy" in agent_result and agent_result["before_you_buy"]:
+            try:
+                byb_data = agent_result["before_you_buy"]
+                alternatives = []
+                for alt in byb_data.get("alternatives", []):
+                    alternatives.append(AlternativeSolution(
+                        problem=alt.get("problem", ""),
+                        consumer_solution=alt.get("consumer_solution", ""),
+                        consumer_cost=float(alt.get("consumer_cost", 0)),
+                        consumer_issues=alt.get("consumer_issues", []),
+                        your_solution=alt.get("your_solution", ""),
+                        your_cost=float(alt.get("your_cost", 0)),
+                        why_better=alt.get("why_better", ""),
+                        how_to=alt.get("how_to", ""),
+                        savings_per_year=float(alt.get("savings_per_year", 0)),
+                        when_to_buy_instead=alt.get("when_to_buy_instead")
+                    ))
+
+                before_you_buy = BeforeYouBuy(
+                    title=byb_data.get("title", "Before You Buy..."),
+                    subtitle=byb_data.get("subtitle", "Let's solve the problem first"),
+                    alternatives=alternatives,
+                    educational_insight=byb_data.get("educational_insight", "")
+                )
+            except Exception as e:
+                print(f"⚠️  Failed to parse before_you_buy: {e}")
+
         # Calculate processing time
         processing_time = time.time() - start_time
 
         # Build response
-        return SearchResponse(
+        search_response = SearchResponse(
+            before_you_buy=before_you_buy,
             results=tier_results,
             search_metadata={
                 "sources_searched": agent_result.get("sources", []),
-                "search_queries_used": agent_result.get("search_queries_used", [])
+                "search_queries_used": agent_result.get("search_queries_used", []),
+                "cached": False
             },
             processing_time_seconds=round(processing_time, 2),
             educational_insights=agent_result.get("educational_insights", [])
         )
+
+        # Step 3: Cache the results for future queries
+        if db_service:
+            print("💾 Caching search results to database...")
+            try:
+                await db_service.cache_search_results(
+                    query=query.query,
+                    search_response=search_response,
+                    tier_preference=query.tier_preference,
+                    max_price=query.max_price,
+                    context=query.context
+                )
+                print("✓ Results cached successfully")
+            except Exception as cache_error:
+                print(f"⚠️  Failed to cache results: {cache_error}")
+                # Don't fail the request if caching fails
+
+        return search_response
 
     except ValueError as e:
         # API key missing or configuration error
@@ -190,10 +270,23 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
 
         for product_data in products_data:
             try:
-                # Calculate value metrics
+                # Calculate value metrics (convert to float in case AI returns strings)
+                price = product_data.get("price", 0)
+                lifespan = product_data.get("lifespan", 1)
+
+                print(f"DEBUG: Parsing product '{product_data.get('name', 'unknown')}'")
+                print(f"  price type: {type(price)}, value: {price}")
+                print(f"  lifespan type: {type(lifespan)}, value: {lifespan}")
+
+                # Convert to float if they're strings
+                if isinstance(price, str):
+                    price = float(price.replace("$", "").replace(",", ""))
+                if isinstance(lifespan, str):
+                    lifespan = float(lifespan)
+
                 value_metrics = ValueMetrics.calculate(
-                    price=product_data.get("price", 0),
-                    lifespan=product_data.get("lifespan", 1)
+                    price=float(price),
+                    lifespan=float(lifespan)
                 )
 
                 # Parse web sources (handle both string URLs and dict objects)
@@ -222,13 +315,64 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                 else:
                     trade_offs = trade_offs_raw
 
+                # Import DurabilityData model
+                from models import DurabilityData
+
+                # Check if agent has already extracted durability data
+                if 'durability_data_extracted' in product_data:
+                    # Use agent-extracted durability data (preferred)
+                    extracted = product_data['durability_data_extracted']
+                    durability_data = DurabilityData(
+                        score=extracted.get('score', 75),
+                        average_lifespan_years=float(extracted.get('average_lifespan_years', value_metrics.expected_lifespan_years)),
+                        still_working_after_5years_percent=extracted.get('still_working_after_5years_percent', 75),
+                        total_user_reports=extracted.get('total_user_reports', 0),
+                        common_failure_points=extracted.get('common_failure_points', []),
+                        repairability_score=extracted.get('repairability_score', 50),
+                        material_quality_indicators=extracted.get('material_quality_indicators', []),
+                        data_sources=extracted.get('data_sources', [])
+                    )
+                else:
+                    # Fallback: Calculate durability score using durability_scorer
+                    durability_scorer = get_durability_scorer()
+                    durability_calc = durability_scorer.calculate_durability_score({
+                        "expected_lifespan_years": product_data.get("lifespan", value_metrics.expected_lifespan_years),
+                        "failure_percentage": product_data.get("failure_percentage"),
+                        "reddit_mentions": product_data.get("reddit_mentions"),
+                        "repairability_info": product_data.get("repairability_info"),
+                        "maintenance_level": product_data.get("maintenance_level", "Medium"),
+                        "materials": product_data.get("materials", []),
+                        "why_gem": product_data.get("why_its_a_gem", ""),
+                        "tier": product_data.get("tier", "better")
+                    })
+
+                    # Extract material quality indicators
+                    material_indicators = [
+                        mat.get("material", "") for mat in durability_calc.material_data.get("materials", [])
+                    ]
+
+                    # Build data sources list
+                    data_sources = ["AI-analyzed Reddit discussions", "Product review aggregation"]
+
+                    durability_data = DurabilityData(
+                        score=durability_calc.total,
+                        average_lifespan_years=float(durability_calc.longevity_data.get("expected_years", value_metrics.expected_lifespan_years)),
+                        still_working_after_5years_percent=int((durability_calc.failure_rate_score / 25) * 100),
+                        total_user_reports=durability_calc.failure_data.get("reddit_mentions", 0) or 0,
+                        common_failure_points=[],  # Will be populated from AI analysis in future
+                        repairability_score=int((durability_calc.repairability_score / 20) * 100),
+                        material_quality_indicators=material_indicators,
+                        data_sources=data_sources
+                    )
+
                 # Create Product object
                 product = Product(
                     name=product_data.get("name", "Unknown Product"),
                     brand=product_data.get("brand", "Unknown Brand"),
-                    tier=ProductTier(product_data.get("tier", "better")),
+                    tier=TierLevel(product_data.get("tier", "better")),
                     category=product_data.get("category", "kitchen product"),
                     value_metrics=value_metrics,
+                    durability_data=durability_data,
                     key_features=product_data.get("key_features", []),
                     materials=product_data.get("materials", []),
                     why_its_a_gem=product_data.get("why_its_a_gem", ""),
@@ -246,7 +390,11 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
 
             except Exception as e:
                 # Skip products that fail to parse
+                import traceback
                 print(f"Failed to parse product: {e}")
+                print(f"Full traceback:")
+                traceback.print_exc()
+                print(f"Product data: {product_data}")
                 continue
 
         return parsed_products
