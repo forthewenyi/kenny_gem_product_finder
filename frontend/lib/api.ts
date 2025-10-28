@@ -30,3 +30,51 @@ export const calculateValue = async (
   )
   return data
 }
+
+export interface Characteristic {
+  label: string
+  reason: string
+  explanation: string
+  image_keyword: string
+}
+
+export const generateCharacteristics = async (
+  query: string,
+  location: string = 'US'
+): Promise<{ characteristics: Characteristic[] }> => {
+  const { data } = await api.post<{ characteristics: Characteristic[] }>(
+    `/api/generate-characteristics?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}`
+  )
+  return data
+}
+
+export interface PopularSearchItem {
+  term: string
+  count: number
+}
+
+export const getPopularSearches = async (
+  category: 'cookware' | 'knives' | 'bakeware',
+  limit: number = 8
+): Promise<{ category: string; items: PopularSearchItem[] }> => {
+  const { data } = await api.get<{ category: string; items: PopularSearchItem[] }>(
+    `/api/popular-searches/${category}?limit=${limit}`
+  )
+  return data
+}
+
+export const trackSearch = async (
+  query: string,
+  category: 'cookware' | 'knives' | 'bakeware'
+): Promise<{ success: boolean }> => {
+  try {
+    const { data } = await api.post<{ success: boolean }>(
+      `/api/track-search?query=${encodeURIComponent(query)}&category=${category}`
+    )
+    return data
+  } catch (error) {
+    // Fire-and-forget - don't block on tracking errors
+    console.warn('Failed to track search:', error)
+    return { success: false }
+  }
+}

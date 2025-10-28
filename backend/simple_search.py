@@ -238,12 +238,34 @@ Please organize these findings into Good/Better/Best tiers. For each product inc
 - best_for (life stage)
 - trade_offs (honest drawbacks)
 - durability_info (IMPORTANT: include any specific durability mentions like "still working after 10 years", "handle broke after 2 years", etc.)
+- practical_metrics (IMPORTANT: Extract day-to-day usage info):
+  {{
+    "cleaning_time_minutes": <estimate from reviews, e.g., 5, 15, 30>,
+    "cleaning_details": "Hand wash only, needs immediate drying" or "Dishwasher safe",
+    "setup_time": "Ready" or "30 min" (for items needing prep),
+    "setup_details": "Pre-seasoned" or "Needs initial seasoning",
+    "learning_curve": "Low" | "Medium" | "High",
+    "learning_details": "3-5 uses to master heat control",
+    "maintenance_level": "Low" | "Medium" | "High",
+    "maintenance_details": "Re-season 2-3x per year",
+    "weight_lbs": 8.5,
+    "weight_notes": "Heavy, use two hands",
+    "dishwasher_safe": true | false,
+    "oven_safe": true | false,
+    "oven_max_temp": 500
+  }}
 
 Extract as much durability data as possible from user reports in the search results. Look for:
 - Years of ownership reported by users
 - Failure timeframes and common problems
 - Repair experiences
 - Long-term performance
+
+Also extract practical usage details from reviews:
+- How long it takes to clean
+- Whether it needs prep/seasoning
+- How heavy it is (look for weight in specs or "heavy" mentions)
+- Dishwasher and oven safety
 
 Return ONLY valid JSON, no markdown formatting."""
 

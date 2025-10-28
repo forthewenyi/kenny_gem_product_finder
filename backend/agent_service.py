@@ -123,7 +123,7 @@ IMPORTANT:
 - Kitchen products ONLY
 - Cite sources with URLs
 - Be honest about trade-offs
-- Find at least 1-2 products per tier
+- Find 2 GOOD, 3 BETTER, 3 BEST products (8 total max, less if products unavailable)
 - Include durability data for each product
 
 For each product, provide detailed information about brand, name, price, expected lifespan, key features, why it's special, web sources found, maintenance level, where to buy, who it's best for, AND durability data (user reports, failure points, repair mentions)."""

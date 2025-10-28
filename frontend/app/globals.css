@@ -43,6 +43,17 @@
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: -1000px 0;
@@ -74,6 +85,10 @@
 
   .animate-fadeInUp {
     animation: fadeInUp 0.5s ease-out;
+  }
+
+  .animate-slideDown {
+    animation: slideDown 0.3s ease-out;
   }
 
   .animate-shimmer {

@@ -23,6 +23,8 @@ from models import (
 from simple_search import get_simple_search
 from database_service import DatabaseService
 from durability_scorer import get_durability_scorer, DurabilityScore as DurabilityScoreCalc
+from characteristic_generator import get_characteristic_generator
+from popular_search_service import get_popular_search_service
 
 # Load environment variables
 load_dotenv()
@@ -133,6 +135,87 @@ async def calculate_value(price: float, lifespan: float):
         return ValueMetrics.calculate(price, lifespan)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/generate-characteristics")
+async def generate_characteristics(query: str, location: str = "US"):
+    """
+    Generate 5 buying characteristics for a product search query
+
+    Args:
+        query: Product search query (e.g., "cast iron skillet", "chef's knife")
+        location: User location (e.g., "Austin, TX", "Seattle, WA")
+
+    Returns:
+        List of 5 characteristics with label, reason, explanation, and image_keyword
+    """
+    try:
+        generator = get_characteristic_generator()
+        characteristics = generator.generate_characteristics(query, location)
+        return {"characteristics": characteristics}
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=f"Configuration error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate characteristics: {str(e)}")
+
+
+@app.get("/api/popular-searches/{category}")
+async def get_popular_searches(category: str, limit: int = 8):
+    """
+    Get top N most searched items for a category (for dropdown menus)
+
+    Args:
+        category: One of 'cookware', 'knives', 'bakeware'
+        limit: Maximum number of results to return (default 8)
+
+    Returns:
+        List of popular search terms with counts
+    """
+    try:
+        # Validate category
+        if category not in ['cookware', 'knives', 'bakeware']:
+            raise HTTPException(status_code=400, detail="Invalid category. Must be one of: cookware, knives, bakeware")
+
+        search_service = get_popular_search_service()
+        results = await search_service.get_popular_searches(category, limit)
+
+        return {
+            "category": category,
+            "items": results
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch popular searches: {str(e)}")
+
+
+@app.post("/api/track-search")
+async def track_search(query: str, category: str):
+    """
+    Track a search term to update popular searches (fire-and-forget from frontend)
+
+    Args:
+        query: The search term (e.g., "Cast Iron Skillet")
+        category: One of 'cookware', 'knives', 'bakeware'
+
+    Returns:
+        Success status
+    """
+    try:
+        # Validate category
+        if category not in ['cookware', 'knives', 'bakeware']:
+            raise HTTPException(status_code=400, detail="Invalid category. Must be one of: cookware, knives, bakeware")
+
+        search_service = get_popular_search_service()
+        success = await search_service.track_search(query, category)
+
+        return {"success": success, "query": query, "category": category}
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Don't fail on tracking errors - just log and return success=false
+        print(f"Error tracking search: {e}")
+        return {"success": False, "query": query, "category": category}
 
 
 @app.post("/api/search", response_model=SearchResponse)
@@ -365,6 +448,27 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                         data_sources=data_sources
                     )
 
+                # Parse practical_metrics if provided by AI
+                from models import PracticalMetrics
+                practical_metrics = None
+                if 'practical_metrics' in product_data and product_data['practical_metrics']:
+                    pm_data = product_data['practical_metrics']
+                    practical_metrics = PracticalMetrics(
+                        cleaning_time_minutes=pm_data.get('cleaning_time_minutes'),
+                        cleaning_details=pm_data.get('cleaning_details', ''),
+                        setup_time=pm_data.get('setup_time', 'Ready'),
+                        setup_details=pm_data.get('setup_details', ''),
+                        learning_curve=pm_data.get('learning_curve', 'Medium'),
+                        learning_details=pm_data.get('learning_details', ''),
+                        maintenance_level=pm_data.get('maintenance_level', 'Medium'),
+                        maintenance_details=pm_data.get('maintenance_details', ''),
+                        weight_lbs=pm_data.get('weight_lbs'),
+                        weight_notes=pm_data.get('weight_notes'),
+                        dishwasher_safe=pm_data.get('dishwasher_safe', False),
+                        oven_safe=pm_data.get('oven_safe', False),
+                        oven_max_temp=pm_data.get('oven_max_temp')
+                    )
+
                 # Create Product object
                 product = Product(
                     name=product_data.get("name", "Unknown Product"),
@@ -373,6 +477,7 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                     category=product_data.get("category", "kitchen product"),
                     value_metrics=value_metrics,
                     durability_data=durability_data,
+                    practical_metrics=practical_metrics,
                     key_features=product_data.get("key_features", []),
                     materials=product_data.get("materials", []),
                     why_its_a_gem=product_data.get("why_its_a_gem", ""),

@@ -2,210 +2,144 @@
 
 import { useState } from 'react'
 import { Product } from '@/types'
-import TierBadge from './TierBadge'
 
 interface ProductCardProps {
   product: Product
   onClick?: () => void
   comparisonMode?: boolean
   isSelected?: boolean
+  selectionNumber?: number // 1, 2, or 3
+  isKennysPick?: boolean
+  animationDelay?: number // For staggered animation
 }
 
-export default function ProductCard({ product, onClick, comparisonMode = false, isSelected = false }: ProductCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+export default function ProductCard({
+  product,
+  onClick,
+  comparisonMode = false,
+  isSelected = false,
+  selectionNumber,
+  isKennysPick = false,
+  animationDelay = 0
+}: ProductCardProps) {
+  const [isHovering, setIsHovering] = useState(false)
 
-  // Helper function to get gradient color based on durability score
-  const getScoreGradient = (score: number) => {
-    if (score >= 80) return 'from-green-50 to-green-100'
-    if (score >= 60) return 'from-blue-50 to-blue-100'
-    return 'from-yellow-50 to-yellow-100'
+  // Get tier colors
+  const getTierClass = (tier: string) => {
+    switch (tier) {
+      case 'good':
+        return 'bg-[#dbe9cc] text-[#3d5a00]'
+      case 'better':
+        return 'bg-[#fce7b8] text-[#8b5a00]'
+      case 'best':
+        return 'bg-[#ffe4e6] text-[#9f1239]'
+      default:
+        return 'bg-gray-200 text-gray-700'
+    }
   }
 
-  // Helper function to get progress ring color
-  const getProgressColor = (score: number) => {
-    if (score >= 80) return '#10b981' // green-500
-    if (score >= 60) return '#3b82f6' // blue-500
-    return '#eab308' // yellow-500
+  // Generate star rating from durability score
+  const getStars = (score: number) => {
+    const fullStars = Math.floor((score / 100) * 5)
+    const hasHalfStar = (score / 100) * 5 - fullStars >= 0.5
+    let stars = '★'.repeat(fullStars)
+    if (hasHalfStar) stars += '☆'
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0)
+    stars += '☆'.repeat(emptyStars)
+    return stars
   }
 
-  // Truncate key insight to max 80 chars
-  const getKeyInsight = (text: string) => {
-    if (text.length <= 80) return text
-    return text.slice(0, 77) + '...'
-  }
-
-  // Calculate circle progress
-  const score = product.durability_data?.score || 0
-  const circumference = 2 * Math.PI * 36 // radius = 36
-  const strokeDashoffset = circumference - (score / 100) * circumference
+  const durabilityScore = product.durability_data?.score || 0
 
   return (
     <div
+      className={`bg-white flex flex-col cursor-pointer relative transition-all animate-fadeInUp focus-within:ring-2 focus-within:ring-blue-500 ${
+        isSelected ? 'outline outline-3 outline-black outline-offset-[-3px]' : ''
+      }`}
+      style={{ animationDelay: `${animationDelay * 50}ms` }}
       onClick={onClick}
-      className={`border rounded-xl p-8 hover:shadow-xl transition-all duration-300 cursor-pointer bg-white relative ${
-        isSelected
-          ? 'border-blue-500 ring-2 ring-blue-200 shadow-xl'
-          : 'border-gray-200'
-      } ${comparisonMode ? 'hover:border-blue-300' : ''}`}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick?.()
+        }
+      }}
+      aria-label={`${product.name} by ${product.brand}, ${product.tier} tier, $${product.value_metrics.upfront_price}`}
     >
-      {/* Comparison Mode Indicator */}
-      {comparisonMode && (
-        <div className="absolute top-3 right-3 z-10">
-          <div
-            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-              isSelected
-                ? 'bg-blue-600 border-blue-600'
-                : 'bg-white border-gray-300'
-            }`}
+      {/* Selection Indicator - Numbered Circle */}
+      {isSelected && selectionNumber && (
+        <div className="absolute top-3 right-3 bg-black text-white w-7 h-7 rounded-full flex items-center justify-center text-base font-bold z-20">
+          {selectionNumber}
+        </div>
+      )}
+
+      {/* Kenny's Pick Badge */}
+      {isKennysPick && (
+        <div className="absolute top-3 left-3 bg-black text-white px-2.5 py-1 text-[10px] uppercase tracking-wide flex items-center gap-1 z-10">
+          💎 Kenny's Pick
+        </div>
+      )}
+
+      {/* Image Container */}
+      <div className="relative w-full bg-[#f8f8f8] overflow-hidden" style={{ paddingBottom: '118.9%' }}>
+        {/* Primary Image */}
+        <img
+          src="https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&auto=format&fit=crop"
+          alt={product.name}
+          className="absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-300"
+          style={{ opacity: isHovering ? 0 : 1 }}
+        />
+
+        {/* Secondary Image - Shows on Hover */}
+        <img
+          src="https://images.unsplash.com/photo-1585515320310-259814833e62?w=800&auto=format&fit=crop"
+          alt={`${product.name} detail`}
+          className="absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-300"
+          style={{ opacity: isHovering ? 1 : 0 }}
+        />
+
+        {/* "Select to Compare" Button - Shows on Hover */}
+        {comparisonMode && (
+          <button
+            className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-[#f8f8f8] border border-[#e5e5e5] px-3.5 py-1.5 text-[11px] uppercase tracking-wide transition-opacity duration-300 hover:bg-black hover:text-white hover:border-black"
+            style={{ opacity: isHovering ? 1 : 0 }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onClick?.()
+            }}
           >
-            {isSelected && (
-              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Tier Badge - Top Right Corner */}
-      <div className="absolute top-3 left-3">
-        <TierBadge tier={product.tier} size="sm" />
+            Select to Compare
+          </button>
+        )}
       </div>
 
-      {/* HERO ELEMENT - Durability Score */}
-      {product.durability_data && (
-        <div className="flex flex-col items-center mb-6 mt-8">
-          <div className={`relative w-20 h-20 bg-gradient-to-br ${getScoreGradient(score)} rounded-full flex items-center justify-center`}>
-            {/* SVG Circular Progress Ring */}
-            <svg className="absolute inset-0 w-20 h-20 -rotate-90" viewBox="0 0 80 80">
-              <circle
-                cx="40"
-                cy="40"
-                r="36"
-                stroke="#e5e7eb"
-                strokeWidth="4"
-                fill="none"
-              />
-              <circle
-                cx="40"
-                cy="40"
-                r="36"
-                stroke={getProgressColor(score)}
-                strokeWidth="4"
-                fill="none"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                className="transition-all duration-500"
-              />
-            </svg>
-            {/* Score Number */}
-            <div className="relative z-10 text-center">
-              <span className="text-5xl font-bold text-gray-900">{score}</span>
-              <span className="text-base text-gray-500">/100</span>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500 mt-2 font-medium">Durability Score</div>
+      {/* Product Info */}
+      <div className="bg-[#f8f8f8] p-3 flex flex-col gap-1.5">
+        {/* Product Name */}
+        <div className="text-[11px] uppercase tracking-wide font-normal text-[#79786c]">
+          {product.name}
         </div>
-      )}
 
-      {/* Product Name • Brand */}
-      <h3 className="text-2xl font-semibold text-gray-900 mb-3 text-center">
-        {product.name} <span className="text-gray-400">•</span> <span className="text-gray-600">{product.brand}</span>
-      </h3>
-
-      {/* Value Summary - Single Line */}
-      <div className="text-lg text-gray-700 text-center mb-4">
-        ${product.value_metrics.upfront_price} <span className="text-gray-400">•</span> {product.value_metrics.expected_lifespan_years} years <span className="text-gray-400">•</span> ${product.value_metrics.cost_per_year}/year
-      </div>
-
-      {/* Key Insight */}
-      <p className="text-base text-gray-600 italic text-center mb-4 leading-relaxed">
-        {getKeyInsight(product.why_its_a_gem)}
-      </p>
-
-      {/* Expandable Details Button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          setIsExpanded(!isExpanded)
-        }}
-        className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors flex items-center justify-center gap-1"
-      >
-        {isExpanded ? 'Hide details ↑' : 'Show details ↓'}
-      </button>
-
-      {/* Expandable Details Section */}
-      <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          isExpanded ? 'max-h-[1000px] opacity-100 mt-4' : 'max-h-0 opacity-0'
-        }`}
-      >
-        <div className="pt-4 border-t border-gray-200 space-y-4">
-          {/* Key Features */}
-          {product.key_features && product.key_features.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Key Features</h4>
-              <ul className="space-y-1.5">
-                {product.key_features.slice(0, 5).map((feature, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start">
-                    <span className="text-green-500 mr-2 mt-0.5">✓</span>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Durability Details */}
-          {product.durability_data && (
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Durability Details</h4>
-              <div className="space-y-1.5">
-                <p className="text-sm text-gray-700">
-                  {product.durability_data.still_working_after_5years_percent}% still working after 5+ years
-                </p>
-                <p className="text-sm text-gray-700">
-                  Average lifespan: {product.durability_data.average_lifespan_years} years
-                </p>
-                <p className="text-sm text-gray-700">
-                  Based on {product.durability_data.total_user_reports} user reports
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Common Failure Points */}
-          {product.durability_data?.common_failure_points &&
-           product.durability_data.common_failure_points.length > 0 && (
-            <div className="border border-gray-200 rounded-lg p-3">
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Common Issues Reported</h4>
-              <ul className="space-y-1">
-                {product.durability_data.common_failure_points.slice(0, 3).map((issue, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start">
-                    <span className="mr-2 mt-0.5">⚠️</span>
-                    <span>{issue}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Trade-offs */}
-          {product.trade_offs && product.trade_offs.length > 0 && (
-            <div className="border border-gray-200 rounded-lg p-3">
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Trade-offs</h4>
-              <ul className="space-y-1">
-                {product.trade_offs.map((tradeoff, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start">
-                    <span className="mr-2 mt-0.5">⚖️</span>
-                    <span>{tradeoff}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        {/* Pricing */}
+        <div className="flex items-center gap-1.5 text-[11px]">
+          <span className="font-semibold text-black">${product.value_metrics.upfront_price}</span>
+          <span className="text-[#79786c] text-[10px]">• ${product.value_metrics.cost_per_year}/year</span>
         </div>
+
+        {/* Durability */}
+        <div className="flex items-center gap-1.5 text-[10px] text-[#79786c]">
+          <span className="text-[#fbbf24] text-[11px]">{getStars(durabilityScore)}</span>
+          <span>Durability: <span className="text-black font-semibold">{(durabilityScore / 10).toFixed(1)}</span></span>
+        </div>
+
+        {/* Tier Badge */}
+        <span className={`inline-block text-[9px] px-2 py-0.5 uppercase tracking-wide font-semibold mt-1 ${getTierClass(product.tier)}`}>
+          {product.tier}
+        </span>
       </div>
     </div>
   )

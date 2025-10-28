@@ -9,7 +9,17 @@
       "Bash(awk:*)",
       "Bash(xargs kill:*)",
       "Bash(python test_debug.py:*)",
-      "Bash(python -m uvicorn:*)"
+      "Bash(python -m uvicorn:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(lsof:*)",
+      "Bash(cat:*)",
+      "Bash(python clear_cache.py:*)",
+      "Bash(python check_cache.py:*)",
+      "Bash(python:*)",
+      "Bash(git add:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

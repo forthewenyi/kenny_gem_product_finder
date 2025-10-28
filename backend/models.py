@@ -59,6 +59,23 @@ class DurabilityData(BaseModel):
     data_sources: List[str] = Field(default_factory=list, description="Reddit threads, review sites, etc.")
 
 
+class PracticalMetrics(BaseModel):
+    """Practical day-to-day usage metrics"""
+    cleaning_time_minutes: Optional[int] = Field(None, description="Typical cleaning time in minutes")
+    cleaning_details: str = Field(default="", description="Cleaning instructions and requirements")
+    setup_time: str = Field(default="Ready", description="Setup time: 'Ready' or time needed like '30 min'")
+    setup_details: str = Field(default="", description="Setup instructions if any")
+    learning_curve: str = Field(default="Medium", description="Low, Medium, or High")
+    learning_details: str = Field(default="", description="What you need to learn")
+    maintenance_level: str = Field(default="Medium", description="Low, Medium, or High")
+    maintenance_details: str = Field(default="", description="Maintenance requirements")
+    weight_lbs: Optional[float] = Field(None, description="Weight in pounds")
+    weight_notes: Optional[str] = Field(None, description="Notes about weight and handling")
+    dishwasher_safe: bool = Field(default=False, description="Can go in dishwasher")
+    oven_safe: bool = Field(default=False, description="Can go in oven")
+    oven_max_temp: Optional[int] = Field(None, description="Maximum oven temperature in Fahrenheit")
+
+
 class AlternativeSolution(BaseModel):
     """Non-purchase solution to solve the problem"""
     problem: str = Field(..., description="The problem the user is trying to solve")
@@ -93,6 +110,9 @@ class Product(BaseModel):
 
     # Durability data (NEW!)
     durability_data: Optional[DurabilityData] = Field(None, description="Durability data from user reports and research")
+
+    # Practical day-to-day metrics (NEW!)
+    practical_metrics: Optional[PracticalMetrics] = Field(None, description="Practical usage metrics: cleaning, setup, weight, etc.")
 
     # Core details
     key_features: List[str] = Field(..., description="Top 3-5 features", min_length=1)

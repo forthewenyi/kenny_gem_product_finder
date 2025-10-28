@@ -27,6 +27,22 @@ export interface DurabilityData {
   data_sources: string[]
 }
 
+export interface PracticalMetrics {
+  cleaning_time_minutes?: number | null
+  cleaning_details: string
+  setup_time: string
+  setup_details: string
+  learning_curve: string
+  learning_details: string
+  maintenance_level: string
+  maintenance_details: string
+  weight_lbs?: number | null
+  weight_notes?: string | null
+  dishwasher_safe: boolean
+  oven_safe: boolean
+  oven_max_temp?: number | null
+}
+
 export interface Product {
   name: string
   brand: string
@@ -34,6 +50,7 @@ export interface Product {
   category: string
   value_metrics: ValueMetrics
   durability_data?: DurabilityData | null
+  practical_metrics?: PracticalMetrics | null
   key_features: string[]
   materials: string[]
   why_its_a_gem: string
