@@ -123,7 +123,7 @@ class Product(BaseModel):
     why_its_a_gem: str = Field(..., description="What makes it special from web research")
 
     # Web research findings
-    web_sources: List[WebSource] = Field(..., description="Sources from Tavily search")
+    web_sources: List[WebSource] = Field(..., description="Sources from Google Search")
     reddit_mentions: Optional[int] = None
     professional_reviews: List[str] = Field(default_factory=list)
 

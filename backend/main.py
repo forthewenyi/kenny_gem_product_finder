@@ -19,8 +19,7 @@ from models import (
     TierLevel,
     WebSource
 )
-# from agent_service import get_agent  # Using simple_search instead for now
-from simple_search import get_simple_search
+from contextual_search import get_contextual_search  # AI-driven query generation with Gemini
 from database_service import DatabaseService
 from durability_scorer import get_durability_scorer, DurabilityScore as DurabilityScoreCalc
 from characteristic_generator import get_characteristic_generator
@@ -224,7 +223,8 @@ async def track_search(query: str, category: str):
 @app.post("/api/search", response_model=SearchResponse)
 async def search_products(query: SearchQuery):
     """
-    AI-powered search using LangChain agent with Tavily tool.
+    AI-powered search using Google Gemini 2.0 Flash + Google Search.
+    Uses contextual AI-driven query generation with 5-phase research framework.
     Returns products organized in Good/Better/Best tiers.
     Checks Supabase cache first to reduce API calls.
     """
@@ -291,8 +291,8 @@ async def search_products(query: SearchQuery):
         print("🔍 Cache disabled - performing fresh search...")
 
         # Step 2: No cache hit - perform fresh search
-        # Get the search instance
-        search = get_simple_search()
+        # Get the search instance using Gemini-powered contextual search
+        search = get_contextual_search()
 
         # Search for products using AI
         agent_result = await search.search_products(
@@ -435,6 +435,44 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
         """Parse a list of product dictionaries into Product objects"""
         parsed_products = []
 
+        def parse_lifespan_to_years(lifespan) -> float:
+            """
+            Parse lifespan string to numeric years.
+            Handles formats: "2-5 years", "30+ years", "15 years", or plain numbers.
+            Returns average for ranges, minimum for "+" format.
+            """
+            if isinstance(lifespan, (int, float)):
+                return float(lifespan)
+
+            if not isinstance(lifespan, str):
+                return 1.0  # Default fallback
+
+            # Remove "years" and clean up
+            lifespan_str = lifespan.lower().replace("years", "").replace("year", "").strip()
+
+            # Handle range format: "2-5" → average
+            if "-" in lifespan_str:
+                try:
+                    parts = lifespan_str.split("-")
+                    start = float(parts[0].strip())
+                    end = float(parts[1].strip().replace("+", ""))
+                    return (start + end) / 2.0
+                except (ValueError, IndexError):
+                    return 1.0
+
+            # Handle "30+" format → use minimum
+            if "+" in lifespan_str:
+                try:
+                    return float(lifespan_str.replace("+", "").strip())
+                except ValueError:
+                    return 1.0
+
+            # Handle plain number: "15" → 15
+            try:
+                return float(lifespan_str)
+            except ValueError:
+                return 1.0
+
         for product_data in products_data:
             try:
                 # Calculate value metrics (convert to float in case AI returns strings)
@@ -448,8 +486,10 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                 # Convert to float if they're strings
                 if isinstance(price, str):
                     price = float(price.replace("$", "").replace(",", ""))
-                if isinstance(lifespan, str):
-                    lifespan = float(lifespan)
+
+                # Parse lifespan (handles ranges like "2-5 years")
+                lifespan = parse_lifespan_to_years(lifespan)
+                print(f"  lifespan parsed to: {lifespan} years")
 
                 value_metrics = ValueMetrics.calculate(
                     price=float(price),
@@ -503,7 +543,7 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                     # Fallback: Calculate durability score using durability_scorer
                     durability_scorer = get_durability_scorer()
                     durability_calc = durability_scorer.calculate_durability_score({
-                        "expected_lifespan_years": product_data.get("lifespan", value_metrics.expected_lifespan_years),
+                        "expected_lifespan_years": lifespan,  # Use parsed numeric lifespan
                         "failure_percentage": product_data.get("failure_percentage"),
                         "reddit_mentions": product_data.get("reddit_mentions"),
                         "repairability_info": product_data.get("repairability_info"),
@@ -553,6 +593,22 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                         oven_max_temp=pm_data.get('oven_max_temp')
                     )
 
+                # Normalize fields that should be lists (AI sometimes returns strings or dicts)
+                materials = product_data.get("materials", [])
+                if isinstance(materials, str):
+                    materials = [materials] if materials else []
+
+                key_features = product_data.get("key_features", [])
+                if isinstance(key_features, str):
+                    key_features = [key_features] if key_features else []
+
+                characteristics = product_data.get("characteristics", [])
+                if isinstance(characteristics, str):
+                    characteristics = [characteristics] if characteristics else []
+                elif isinstance(characteristics, dict):
+                    # Convert dict to list of "key: value" strings
+                    characteristics = [f"{k}: {v}" for k, v in characteristics.items()]
+
                 # Create Product object
                 product = Product(
                     name=product_data.get("name", "Unknown Product"),
@@ -562,9 +618,9 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                     value_metrics=value_metrics,
                     durability_data=durability_data,
                     practical_metrics=practical_metrics,
-                    characteristics=product_data.get("characteristics", []),
-                    key_features=product_data.get("key_features", []),
-                    materials=product_data.get("materials", []),
+                    characteristics=characteristics,
+                    key_features=key_features,
+                    materials=materials,
                     why_its_a_gem=product_data.get("why_its_a_gem", ""),
                     web_sources=web_sources,
                     reddit_mentions=product_data.get("reddit_mentions"),

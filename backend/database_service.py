@@ -1,6 +1,6 @@
 """
 Database service for caching search results and products using Supabase.
-This reduces API calls to Tavily and OpenAI by caching previous searches.
+This reduces API calls to Google Search and Gemini by caching previous searches.
 """
 
 import os

@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from simple_search import get_simple_search
+from contextual_search import get_contextual_search
 
 
 # ========== CONFIGURE YOUR TEST HERE ==========
@@ -26,7 +26,7 @@ QUERY = "chef knife"  # Change this to test different products
 async def test_search():
     """Run a search and pretty print results"""
 
-    search = get_simple_search()
+    search = get_contextual_search()
 
     print(f"\n{'='*80}")
     print(f"🔍 TESTING SEARCH FOR: {QUERY}")
@@ -89,8 +89,23 @@ async def test_search():
 
             # Calculate cost per year
             if product.get('price') and product.get('lifespan'):
-                cpy = product['price'] / product['lifespan']
-                print(f"💵 Cost/year: ${cpy:.2f}")
+                try:
+                    # Handle both numeric and string lifespans
+                    lifespan = product['lifespan']
+                    if isinstance(lifespan, str):
+                        # Extract first number from string like "3-5 years"
+                        import re
+                        match = re.search(r'(\d+)', lifespan)
+                        if match:
+                            lifespan = int(match.group(1))
+                        else:
+                            lifespan = None
+
+                    if lifespan:
+                        cpy = product['price'] / lifespan
+                        print(f"💵 Cost/year: ${cpy:.2f}")
+                except (ValueError, TypeError, ZeroDivisionError):
+                    pass
 
             # Characteristics
             characteristics = product.get('characteristics', [])

@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 const messages = [
   "No algorithms. No ads. Just honest recommendations for kitchen tools that last.",
   "Meet Kenny, Your Personal Gem Finder",
-  "Kenny doesn't take affiliate commissions",
+  "Find kitchen tools that last decades, not just months",
   "Kenny calculates cost-per-year, not just price tags"
 ]
 

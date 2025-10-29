@@ -16,6 +16,7 @@ import ProductCard from '@/components/ProductCard'
 import SearchCounter from '@/components/SearchCounter'
 import TierBadge from '@/components/TierBadge'
 import DurabilityScore from '@/components/DurabilityScore'
+import SearchMetrics from '@/components/SearchMetrics'
 
 export default function Home() {
   const [results, setResults] = useState<SearchResponse | null>(null)
@@ -199,6 +200,18 @@ export default function Home() {
           onMaterialClick={handleMaterialClick}
           onTierClick={handleTierClick}
         />
+      )}
+
+      {/* Search Metrics - Show what Kenny searched */}
+      {!searchMutation.isPending && results && (
+        <div className="max-w-[1400px] mx-auto px-10 pb-5">
+          <SearchMetrics
+            searchQueries={results.search_queries}
+            totalSourcesAnalyzed={results.total_sources_analyzed}
+            queriesGenerated={results.queries_generated}
+            sourcesByPhase={results.sources_by_phase}
+          />
+        </div>
       )}
 
       <div className="container mx-auto px-4"  >

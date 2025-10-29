@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import NavigationDropdown from './NavigationDropdown'
 import { getPopularSearches, trackSearch, type PopularSearchItem } from '@/lib/api'
@@ -11,8 +12,10 @@ interface HeaderProps {
 }
 
 export default function Header({ onNavigate, onSearch }: HeaderProps) {
+  const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // Categories with dropdowns
   const dropdownCategories = [
@@ -36,6 +39,26 @@ export default function Header({ onNavigate, onSearch }: HeaderProps) {
     }
     setMobileMenuOpen(false) // Close mobile menu after search
     setExpandedMobileCategory(null)
+  }
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return
+
+    setIsLoggingOut(true)
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        router.push('/login')
+        router.refresh()
+      }
+    } catch (error) {
+      console.error('Logout failed:', error)
+    } finally {
+      setIsLoggingOut(false)
+    }
   }
 
   return (
@@ -63,7 +86,7 @@ export default function Header({ onNavigate, onSearch }: HeaderProps) {
           </nav>
         </div>
 
-        {/* Right side: Mobile Menu + Cart Icon */}
+        {/* Right side: Mobile Menu + Cart Icon + Logout */}
         <div className="flex items-center gap-4">
           {/* Mobile Menu Button */}
           <button
@@ -78,6 +101,16 @@ export default function Header({ onNavigate, onSearch }: HeaderProps) {
           <div className="text-xl cursor-pointer">
             🛒
           </div>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="text-[11px] uppercase tracking-wide text-[#79786c] hover:text-black transition-colors disabled:opacity-50"
+            aria-label="Logout"
+          >
+            {isLoggingOut ? 'Logging out...' : 'Logout'}
+          </button>
         </div>
       </header>
 

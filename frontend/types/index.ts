@@ -123,6 +123,17 @@ export interface SearchResponse {
   educational_insights: string[]
   aggregated_characteristics: AggregatedCharacteristic[] // NEW: Real characteristics from products
   real_search_metrics?: RealSearchMetrics | null // NEW: Real search metrics
+  // NEW: Search transparency data
+  search_queries?: Array<{ phase: string; query: string }>
+  total_sources_analyzed?: number
+  queries_generated?: number
+  sources_by_phase?: {
+    context_discovery?: number
+    material_science?: number
+    product_identification?: number
+    frustration_research?: number
+    value_synthesis?: number
+  }
 }
 
 export interface SearchQuery {

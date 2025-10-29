@@ -1,0 +1,37 @@
+# Cloudflare Workers Configuration
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "kenny-gem-finder-api-cache"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Worker settings
+workers_dev = true
+
+# Routes configuration (uncomment and configure for production)
+# route = "api.yourdomain.com/*"
+# zone_name = "yourdomain.com"
+
+# Environment variables (optional)
+[env.production]
+name = "kenny-gem-finder-api-cache-prod"
+
+[env.staging]
+name = "kenny-gem-finder-api-cache-staging"
+
+# KV namespaces for additional caching (optional)
+# [[kv_namespaces]]
+# binding = "API_CACHE"
+# id = "your-kv-namespace-id"
+
+# Durable Objects (optional, for advanced state management)
+# [[durable_objects.bindings]]
+# name = "CACHE_MANAGER"
+# class_name = "CacheManager"
+
+# Compatibility flags
+[build]
+command = ""
+
+# Add compatibility flags if needed
+# compatibility_flags = []

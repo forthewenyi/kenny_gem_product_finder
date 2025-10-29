@@ -1,18 +1,21 @@
 """
 Characteristic Generator
 Generates 5 buying characteristics for a product search query based on location and context
+Now powered by Google Gemini instead of OpenAI.
 """
 import json
 from typing import List, Dict
-from openai import OpenAI
+import google.generativeai as genai
 import os
 
 class CharacteristicGenerator:
     def __init__(self):
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
-        self.client = OpenAI(api_key=api_key)
+            raise ValueError("GOOGLE_API_KEY environment variable not set")
+
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
 
     def generate_characteristics(
         self,
@@ -44,17 +47,11 @@ class CharacteristicGenerator:
         user_prompt = self._build_user_prompt(query, location, context or {})
 
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=1000
-            )
+            # Combine system and user prompts for Gemini
+            full_prompt = f"{system_prompt}\n\n{user_prompt}"
 
-            content = response.choices[0].message.content.strip()
+            response = self.model.generate_content(full_prompt)
+            content = response.text.strip()
 
             # Remove markdown code blocks if present
             if content.startswith("```json"):
