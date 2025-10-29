@@ -114,6 +114,9 @@ class Product(BaseModel):
     # Practical day-to-day metrics (NEW!)
     practical_metrics: Optional[PracticalMetrics] = Field(None, description="Practical usage metrics: cleaning, setup, weight, etc.")
 
+    # Normalized characteristics for filtering (NEW!)
+    characteristics: List[str] = Field(default_factory=list, description="Normalized product characteristics for filtering (e.g., 'Pre-seasoned', 'Helper handle', 'Dishwasher safe')")
+
     # Core details
     key_features: List[str] = Field(..., description="Top 3-5 features", min_length=1)
     materials: List[str] = Field(default_factory=list)
@@ -158,6 +161,23 @@ class TierResults(BaseModel):
     best: List[Product] = Field(default_factory=list)
 
 
+class AggregatedCharacteristic(BaseModel):
+    """Aggregated characteristic across all products"""
+    label: str = Field(..., description="Characteristic label (e.g., 'Pre-seasoned', 'Helper handle')")
+    count: int = Field(..., description="Number of products with this characteristic")
+    product_names: List[str] = Field(..., description="Names of products with this characteristic")
+
+
+class RealSearchMetrics(BaseModel):
+    """Real metrics from the search process"""
+    total_sources_analyzed: int = Field(..., description="Total web sources analyzed")
+    reddit_threads: int = Field(0, description="Number of Reddit threads analyzed")
+    expert_reviews: int = Field(0, description="Number of expert reviews analyzed")
+    search_queries_executed: int = Field(..., description="Number of search queries executed")
+    search_queries: List[str] = Field(..., description="Actual search queries used")
+    unique_sources: int = Field(..., description="Number of unique sources after deduplication")
+
+
 class SearchResponse(BaseModel):
     """Search API response"""
     before_you_buy: Optional[BeforeYouBuy] = Field(None, description="Alternative solutions before showing products")
@@ -165,6 +185,8 @@ class SearchResponse(BaseModel):
     search_metadata: Dict[str, Any] = Field(..., description="Queries used, sources searched")
     processing_time_seconds: float
     educational_insights: Optional[List[str]] = Field(default_factory=list, description="Tips and common mistakes")
+    aggregated_characteristics: List[AggregatedCharacteristic] = Field(default_factory=list, description="Aggregated characteristics from all products for filtering")
+    real_search_metrics: Optional[RealSearchMetrics] = Field(None, description="Real search metrics showing actual research done")
 
 
 class HealthCheckResponse(BaseModel):

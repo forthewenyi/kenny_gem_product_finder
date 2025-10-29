@@ -98,42 +98,90 @@ class SimpleKennySearch:
             context: User context
 
         Returns:
-            Dictionary with product results
+            Dictionary with product results and search metrics
         """
         # Step 1: Generate multiple durability-focused queries
         durability_queries = self._generate_durability_queries(query)
 
-        # Step 2: Execute multiple searches (limit to top 4 to manage API costs)
+        # Step 2: Execute multiple searches IN PARALLEL for speed
+        import asyncio
+        import time
+
         all_results = []
         queries_used = []
+        selected_queries = durability_queries[:4]  # Limit to 4 searches for good coverage
 
-        print(f"🔍 Executing {min(4, len(durability_queries))} durability-focused searches...")
+        print(f"🔍 Executing {len(selected_queries)} durability-focused searches IN PARALLEL...")
+        print("⚡ Running searches concurrently for maximum speed!")
 
-        for search_query in durability_queries[:4]:  # Limit to 4 searches
+        search_start = time.time()
+
+        async def run_single_search(search_query: str, search_num: int):
+            """Run a single Tavily search asynchronously"""
+            query_start = time.time()
             try:
-                print(f"  → {search_query}")
-                tavily_results = self.tavily_client.search(
-                    query=search_query,
-                    search_depth="advanced",
-                    max_results=5,  # Fewer results per query since we're doing multiple queries
-                    include_domains=[
-                        "reddit.com",
-                        "seriouseats.com",
-                        "americastestkitchen.com",
-                        "cooksillustrated.com"
-                    ]
+                print(f"  {search_num}. Searching: {search_query[:60]}...")
+                # Tavily client is synchronous, so we run it in a thread pool
+                loop = asyncio.get_event_loop()
+
+                # Add 15 second timeout per search to prevent hanging
+                tavily_results = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,  # Use default executor
+                        lambda: self.tavily_client.search(
+                            query=search_query,
+                            search_depth="basic",  # Use basic for faster results
+                            max_results=8,  # More results to find 8-12 products
+                            include_domains=[
+                                "reddit.com",
+                                "seriouseats.com",
+                                "americastestkitchen.com",
+                                "cooksillustrated.com"
+                            ]
+                        )
+                    ),
+                    timeout=15.0  # 15 second timeout per search
                 )
 
-                # Collect results
+                query_elapsed = time.time() - query_start
+                print(f"     ✓ Query {search_num} completed in {query_elapsed:.1f}s ({len(tavily_results.get('results', []))} results)")
+
+                # Return results and query
                 if tavily_results.get("results"):
-                    all_results.extend(tavily_results.get("results", []))
-                    queries_used.append(search_query)
+                    return {
+                        "results": tavily_results.get("results", []),
+                        "query": search_query,
+                        "success": True
+                    }
+                else:
+                    return {"results": [], "query": search_query, "success": False}
 
+            except asyncio.TimeoutError:
+                query_elapsed = time.time() - query_start
+                print(f"     ⏱️  Query {search_num} timed out after {query_elapsed:.1f}s")
+                return {"results": [], "query": search_query, "success": False, "error": "timeout"}
             except Exception as e:
-                print(f"  ⚠️  Search failed for '{search_query}': {e}")
-                continue
+                query_elapsed = time.time() - query_start
+                print(f"     ⚠️  Query {search_num} failed after {query_elapsed:.1f}s: {e}")
+                return {"results": [], "query": search_query, "success": False, "error": str(e)}
 
-        print(f"✓ Collected {len(all_results)} total search results from {len(queries_used)} queries")
+        # Run all searches in parallel with individual query numbering
+        search_tasks = [run_single_search(query, i+1) for i, query in enumerate(selected_queries)]
+        search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+
+        # Collect all results (skip exceptions)
+        for result in search_results:
+            # Skip if result is an exception
+            if isinstance(result, Exception):
+                print(f"  ⚠️  Skipping result due to exception: {result}")
+                continue
+            # Only process successful results
+            if isinstance(result, dict) and result.get("success"):
+                all_results.extend(result["results"])
+                queries_used.append(result["query"])
+
+        search_elapsed = time.time() - search_start
+        print(f"✓ Collected {len(all_results)} total search results from {len(queries_used)} queries in {search_elapsed:.1f}s")
 
         # Step 3: Remove duplicate URLs
         seen_urls = set()
@@ -145,6 +193,10 @@ class SimpleKennySearch:
                 unique_results.append(result)
 
         print(f"✓ Deduplicated to {len(unique_results)} unique results")
+
+        # Step 3.5: Count Reddit threads and expert reviews
+        reddit_count = sum(1 for r in unique_results if 'reddit.com' in r.get('url', ''))
+        expert_review_count = sum(1 for r in unique_results if any(domain in r.get('url', '') for domain in ['seriouseats.com', 'americastestkitchen.com', 'cooksillustrated.com']))
 
         # Step 4: Format search results for OpenAI
         search_context = self._format_search_results({"results": unique_results})
@@ -176,9 +228,11 @@ Examples:
 ## Step 2: PRODUCT RECOMMENDATIONS
 
 Analyze the web search results and organize products into three tiers:
-- GOOD: $20-80, 2-5 years (students, renters)
-- BETTER: $80-200, 8-15 years (homeowners)
-- BEST: $200-600+, 15-30+ years (lifetime investment)
+- GOOD: $20-80, 2-5 years (students, renters) - MUST include at least 3 products
+- BETTER: $80-200, 8-15 years (homeowners) - MUST include at least 3 products
+- BEST: $200-600+, 15-30+ years (lifetime investment) - MUST include at least 3 products
+
+CRITICAL REQUIREMENT: You MUST return a minimum of 9 total products (3 per tier). Users need multiple options to compare within each price tier. Extract product recommendations from different sources in the search results - look for brand names, model numbers, and specific product mentions across Reddit threads and expert reviews.
 
 For each product, calculate cost-per-year = price / lifespan.
 
@@ -225,7 +279,7 @@ NOTE: Only include "before_you_buy" if legitimate alternatives exist. For core t
         user_prompt = f"""User query: {query}
 Context: {context}
 
-Web search results (from {len(queries_used)} durability-focused searches):
+Web search results (from {len(queries_used)} strategic searches analyzing Reddit, expert reviews, and user reports):
 {search_context}
 
 Please organize these findings into Good/Better/Best tiers. For each product include:
@@ -238,6 +292,20 @@ Please organize these findings into Good/Better/Best tiers. For each product inc
 - best_for (life stage)
 - trade_offs (honest drawbacks)
 - durability_info (IMPORTANT: include any specific durability mentions like "still working after 10 years", "handle broke after 2 years", etc.)
+- characteristics (CRITICAL - NEW!): Normalized characteristics for filtering. Extract and normalize product attributes into standard labels:
+  Examples for cast iron skillet: ["Pre-seasoned", "Helper handle", "Heavy bottom", "10-12 inch", "Smooth interior"]
+  Examples for knife: ["Full tang", "High carbon steel", "8-inch blade", "Ergonomic handle", "Balanced weight"]
+  Examples for air fryer: ["Large capacity", "Digital controls", "Dishwasher safe parts", "Quiet operation", "Compact design"]
+
+  Guidelines for characteristics:
+  - Normalize to title case (e.g., "Pre-seasoned" not "pre-seasoned" or "PRE-SEASONED")
+  - Use consistent phrasing (e.g., always "Dishwasher safe" not "Can be washed in dishwasher")
+  - Include size attributes (e.g., "10-12 inch", "Large capacity", "8-inch blade")
+  - Include material attributes (e.g., "Cast iron", "Stainless steel", "High carbon steel")
+  - Include functional features (e.g., "Helper handle", "Digital controls", "Oven safe")
+  - Include practical properties (e.g., "Lightweight", "Dishwasher safe", "Pre-seasoned")
+  - Aim for 5-8 characteristics per product
+
 - practical_metrics (IMPORTANT: Extract day-to-day usage info):
   {{
     "cleaning_time_minutes": <estimate from reviews, e.g., 5, 15, 30>,
@@ -276,7 +344,7 @@ Return ONLY valid JSON, no markdown formatting."""
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.3,
-            max_tokens=4000
+            max_tokens=8000  # Increased to support 8-12 products with full details
         )
 
         # Parse response
@@ -296,6 +364,16 @@ Return ONLY valid JSON, no markdown formatting."""
             # Add the queries we actually used
             if "search_queries_used" not in result:
                 result["search_queries_used"] = queries_used
+
+            # Add real search metrics
+            result["real_search_metrics"] = {
+                "total_sources_analyzed": len(all_results),
+                "reddit_threads": reddit_count,
+                "expert_reviews": expert_review_count,
+                "search_queries_executed": len(queries_used),
+                "search_queries": queries_used,
+                "unique_sources": len(unique_results)
+            }
 
             return result
         except json.JSONDecodeError:

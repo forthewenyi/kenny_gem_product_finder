@@ -51,6 +51,7 @@ export interface Product {
   value_metrics: ValueMetrics
   durability_data?: DurabilityData | null
   practical_metrics?: PracticalMetrics | null
+  characteristics: string[] // NEW: Normalized characteristics for filtering
   key_features: string[]
   materials: string[]
   why_its_a_gem: string
@@ -96,6 +97,21 @@ export interface TierResults {
   best: Product[]
 }
 
+export interface AggregatedCharacteristic {
+  label: string
+  count: number
+  product_names: string[]
+}
+
+export interface RealSearchMetrics {
+  total_sources_analyzed: number
+  reddit_threads: number
+  expert_reviews: number
+  search_queries_executed: number
+  search_queries: string[]
+  unique_sources: number
+}
+
 export interface SearchResponse {
   before_you_buy?: BeforeYouBuy | null
   results: TierResults
@@ -105,6 +121,8 @@ export interface SearchResponse {
   }
   processing_time_seconds: number
   educational_insights: string[]
+  aggregated_characteristics: AggregatedCharacteristic[] // NEW: Real characteristics from products
+  real_search_metrics?: RealSearchMetrics | null // NEW: Real search metrics
 }
 
 export interface SearchQuery {

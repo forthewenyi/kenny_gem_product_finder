@@ -1,50 +1,50 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import type { RealSearchMetrics } from '@/types'
 
 interface SearchCounterProps {
-  targetCount?: number
+  metrics?: RealSearchMetrics | null
   query?: string
 }
 
-export default function SearchCounter({ targetCount = 1247, query = 'cast iron skillets' }: SearchCounterProps) {
-  const [count, setCount] = useState(0)
-
-  useEffect(() => {
-    // Reset and animate counter
-    setCount(0)
-
-    const duration = 2000 // 2 seconds animation
-    const steps = 60 // Number of steps in animation
-    const increment = targetCount / steps
-    const stepDuration = duration / steps
-
-    let currentStep = 0
-    const timer = setInterval(() => {
-      currentStep++
-      if (currentStep >= steps) {
-        setCount(targetCount)
-        clearInterval(timer)
-      } else {
-        setCount(Math.floor(increment * currentStep))
-      }
-    }, stepDuration)
-
-    return () => clearInterval(timer)
-  }, [targetCount])
+export default function SearchCounter({ metrics, query = 'products' }: SearchCounterProps) {
+  if (!metrics) {
+    return null
+  }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-10 py-6 mt-16 flex items-center gap-3 bg-gray-50 border-t border-b border-gray-200">
-      {/* Animated pickaxe icon */}
-      <span className="text-2xl animate-bounce">⛏️</span>
+    <div className="max-w-[1400px] mx-auto px-10 py-6 mt-16 flex items-center gap-6 bg-gray-50 border-t border-b border-gray-200">
+      {/* Pickaxe icon */}
+      <span className="text-2xl">⛏️</span>
 
-      <span className="text-xs uppercase tracking-wide text-gray-700">
-        Kenny has searched{' '}
-        <span className="font-bold text-black">
-          {count.toLocaleString()}
-        </span>{' '}
-        products to find you the best {query}
-      </span>
+      {/* Real Search Metrics */}
+      <div className="flex flex-col gap-1">
+        <span className="text-xs uppercase tracking-wide text-gray-700">
+          Kenny analyzed{' '}
+          <span className="font-bold text-black">
+            {metrics.unique_sources} sources
+          </span>{' '}
+          from{' '}
+          <span className="font-bold text-black">
+            {metrics.search_queries_executed} searches
+          </span>{' '}
+          to find you the best {query}
+        </span>
+
+        {/* Breakdown */}
+        <div className="flex items-center gap-4 text-[10px] text-gray-500">
+          {metrics.reddit_threads > 0 && (
+            <span>
+              📱 {metrics.reddit_threads} Reddit {metrics.reddit_threads === 1 ? 'thread' : 'threads'}
+            </span>
+          )}
+          {metrics.expert_reviews > 0 && (
+            <span>
+              ⭐ {metrics.expert_reviews} expert {metrics.expert_reviews === 1 ? 'review' : 'reviews'}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

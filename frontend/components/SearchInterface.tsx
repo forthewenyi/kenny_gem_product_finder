@@ -51,7 +51,7 @@ export default function SearchInterface({ onSearch, isLoading }: SearchInterface
         {isLoading ? (
           <span className="flex items-center gap-2">
             <span className="inline-block animate-swing-pickaxe text-2xl">⛏️</span>
-            <span>Kenny is digging... Searching Reddit, reviews, and kitchen forums...</span>
+            <span>Kenny is digging... Analyzing Reddit, expert reviews, and user reports (20-30 seconds for thorough search)</span>
           </span>
         ) : (
           '💡 Search to see Kenny\'s buying guidance for different items'

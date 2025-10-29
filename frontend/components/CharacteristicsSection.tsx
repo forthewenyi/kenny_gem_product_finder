@@ -1,78 +1,106 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
-import { generateCharacteristics, Characteristic as APICharacteristic } from '@/lib/api'
-
-interface Characteristic {
-  label: string
-  reason: string
-  imageUrl: string
-  explanation?: string
-}
-
-const placeholderCharacteristics: Characteristic[] = [
-  {
-    label: 'PRE-SEASONED',
-    reason: 'Ready to use',
-    imageUrl: 'https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&auto=format&fit=crop'
-  },
-  {
-    label: '10-12 INCH',
-    reason: 'Most versatile',
-    imageUrl: 'https://images.unsplash.com/photo-1565895405227-33f37c6c0e56?w=800&auto=format&fit=crop'
-  },
-  {
-    label: 'HEAVY BOTTOM',
-    reason: 'Even heating',
-    imageUrl: 'https://images.unsplash.com/photo-1584990347449-39910cbee3f6?w=800&auto=format&fit=crop'
-  },
-  {
-    label: 'HELPER HANDLE',
-    reason: 'Easier to lift',
-    imageUrl: 'https://images.unsplash.com/photo-1616486701797-0f33f61038ec?w=800&auto=format&fit=crop'
-  },
-  {
-    label: 'SMOOTH INTERIOR',
-    reason: 'Easier cleaning',
-    imageUrl: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=800&auto=format&fit=crop'
-  }
-]
+import type { AggregatedCharacteristic } from '@/types'
 
 interface CharacteristicsSectionProps {
   query?: string
-  location?: string
+  aggregatedCharacteristics: AggregatedCharacteristic[]
   selectedCharacteristics?: string[]
   onCharacteristicClick?: (characteristic: string) => void
 }
 
+// Generate helpful reason text based on characteristic label
+function getCharacteristicReason(label: string): string {
+  const lowerLabel = label.toLowerCase()
+
+  // Size-related
+  if (lowerLabel.includes('inch') || lowerLabel.includes('capacity')) {
+    return 'Most versatile'
+  }
+
+  // Pre-seasoned / Ready to use
+  if (lowerLabel.includes('pre-seasoned') || lowerLabel.includes('ready')) {
+    return 'Ready to use'
+  }
+
+  // Handle-related
+  if (lowerLabel.includes('handle') && lowerLabel.includes('helper')) {
+    return 'Easier to lift'
+  }
+  if (lowerLabel.includes('handle') && (lowerLabel.includes('ergonomic') || lowerLabel.includes('comfortable'))) {
+    return 'Better grip'
+  }
+  if (lowerLabel.includes('tang')) {
+    return 'Better balance'
+  }
+
+  // Material-related
+  if (lowerLabel.includes('steel') || lowerLabel.includes('iron')) {
+    return 'Long lasting'
+  }
+  if (lowerLabel.includes('non-stick') || lowerLabel.includes('nonstick')) {
+    return 'Easy cooking'
+  }
+
+  // Cleaning-related
+  if (lowerLabel.includes('dishwasher')) {
+    return 'Easy cleaning'
+  }
+  if (lowerLabel.includes('smooth')) {
+    return 'Easier cleaning'
+  }
+
+  // Heat-related
+  if (lowerLabel.includes('oven safe') || lowerLabel.includes('oven-safe')) {
+    return 'Versatile cooking'
+  }
+  if (lowerLabel.includes('heavy') || lowerLabel.includes('thick')) {
+    return 'Even heating'
+  }
+
+  // Weight-related
+  if (lowerLabel.includes('lightweight') || lowerLabel.includes('light weight')) {
+    return 'Easy handling'
+  }
+
+  // Digital/Controls
+  if (lowerLabel.includes('digital')) {
+    return 'Precise control'
+  }
+
+  // Quiet operation
+  if (lowerLabel.includes('quiet')) {
+    return 'Less noise'
+  }
+
+  // Compact/Small
+  if (lowerLabel.includes('compact')) {
+    return 'Saves space'
+  }
+
+  // Default
+  return 'Common choice'
+}
+
 export default function CharacteristicsSection({
   query,
-  location,
+  aggregatedCharacteristics,
   selectedCharacteristics = [],
   onCharacteristicClick
 }: CharacteristicsSectionProps) {
   // Format query for display
   const displayQuery = query && query.trim() ? query : 'Kitchen Products'
-  const searchQuery = query && query.trim() ? query : 'kitchen products'
 
-  // Fetch dynamic characteristics from API
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['characteristics', searchQuery, location],
-    queryFn: () => generateCharacteristics(searchQuery, location || 'Austin, TX'),
-    enabled: !!searchQuery, // Only fetch if we have a query
-    staleTime: 1000 * 60 * 60, // Cache for 1 hour
-  })
-
-  // Use API data if available, otherwise fall back to placeholder
-  const characteristics = data?.characteristics
-    ? data.characteristics.map((char: APICharacteristic, index: number) => ({
-        label: char.label,
-        reason: char.reason,
-        explanation: char.explanation,
-        // Use Unsplash with image_keyword, or fallback to placeholder images
-        imageUrl: `https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&auto=format&fit=crop&q=${char.image_keyword}`
-      }))
-    : placeholderCharacteristics
+  // Use aggregated characteristics from search results
+  // These are real characteristics extracted from the products found
+  const characteristics = aggregatedCharacteristics.slice(0, 5).map((char, index) => ({
+    label: char.label,
+    reason: getCharacteristicReason(char.label),
+    count: char.count,
+    productNames: char.product_names,
+    // Use Unsplash with characteristic as keyword
+    imageUrl: `https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&auto=format&fit=crop&q=${encodeURIComponent(char.label)}`
+  }))
 
   return (
     <section className="max-w-[1400px] mx-auto px-10 pb-10">
@@ -80,10 +108,9 @@ export default function CharacteristicsSection({
       <div className="mb-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide mb-1">
           Kenny's Buying Guide for {displayQuery}
-          {isLoading && <span className="ml-2 text-xs text-gray-400">(generating...)</span>}
         </h2>
         <p className="text-xs text-gray-500 tracking-wide">
-          Based on your location {location ? `(${location})` : '(Austin, TX)'} and typical use, here's what to look for:
+          Based on {aggregatedCharacteristics.reduce((sum, c) => sum + c.count, 0)} products found, here's what to look for:
         </p>
       </div>
 
@@ -140,7 +167,7 @@ export default function CharacteristicsSection({
       {/* Footer Note */}
       <div className="mt-4 text-xs text-gray-500 flex items-center gap-1">
         <span>ℹ️</span>
-        <span>These suggestions change based on what you search for</span>
+        <span>These are real product characteristics extracted from the search results</span>
       </div>
     </section>
   )

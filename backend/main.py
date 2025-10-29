@@ -37,9 +37,12 @@ app = FastAPI(
 )
 
 # Initialize database service
+# TEMPORARILY DISABLED: Database schema incompatible with current Product model
+# Need to update database_service.py to use new schema with nested value_metrics
 try:
-    db_service = DatabaseService()
-    print("✓ Database caching enabled")
+    # db_service = DatabaseService()
+    db_service = None  # Temporarily disabled
+    print("⚠️  Database caching temporarily disabled (schema mismatch)")
 except Exception as e:
     print(f"⚠️  Database caching disabled: {e}")
     db_service = None
@@ -228,8 +231,8 @@ async def search_products(query: SearchQuery):
     start_time = time.time()
 
     try:
-        # Step 1: Check database cache first (TEMPORARILY DISABLED FOR TESTING)
-        if False and db_service:  # Disabled temporarily
+        # Step 1: Check database cache first
+        if db_service:
             print(f"🔍 Checking cache for query: '{query.query}'")
             cached_result = await db_service.get_cached_search(
                 query=query.query,
@@ -240,6 +243,47 @@ async def search_products(query: SearchQuery):
             if cached_result:
                 print("✓ Cache hit! Returning cached results")
                 cached_result.search_metadata["cached"] = True
+
+                # Handle old cache entries that don't have new fields
+                if not hasattr(cached_result, 'aggregated_characteristics') or cached_result.aggregated_characteristics is None:
+                    # Regenerate aggregated characteristics from products
+                    from collections import Counter
+                    from models import AggregatedCharacteristic
+
+                    all_products = cached_result.results.good + cached_result.results.better + cached_result.results.best
+                    characteristic_counts = Counter()
+                    characteristic_products = {}
+
+                    for product in all_products:
+                        if hasattr(product, 'characteristics') and product.characteristics:
+                            for char in product.characteristics:
+                                characteristic_counts[char] += 1
+                                if char not in characteristic_products:
+                                    characteristic_products[char] = []
+                                characteristic_products[char].append(product.name)
+
+                    cached_result.aggregated_characteristics = [
+                        AggregatedCharacteristic(
+                            label=char,
+                            count=count,
+                            product_names=characteristic_products[char]
+                        )
+                        for char, count in characteristic_counts.most_common(10)
+                    ]
+
+                # Handle old cache entries without real_search_metrics
+                if not hasattr(cached_result, 'real_search_metrics') or cached_result.real_search_metrics is None:
+                    from models import RealSearchMetrics
+                    # Provide placeholder metrics for cached results
+                    cached_result.real_search_metrics = RealSearchMetrics(
+                        total_sources_analyzed=0,
+                        reddit_threads=0,
+                        expert_reviews=0,
+                        search_queries_executed=0,
+                        search_queries=[],
+                        unique_sources=0
+                    )
+
                 return cached_result
 
             print("✗ Cache miss. Performing fresh search...")
@@ -292,6 +336,44 @@ async def search_products(query: SearchQuery):
         # Calculate processing time
         processing_time = time.time() - start_time
 
+        # Aggregate characteristics from all products
+        from collections import Counter
+        from models import AggregatedCharacteristic, RealSearchMetrics
+
+        all_products = tier_results.good + tier_results.better + tier_results.best
+        characteristic_counts = Counter()
+        characteristic_products = {}  # Track which products have each characteristic
+
+        for product in all_products:
+            for char in product.characteristics:
+                characteristic_counts[char] += 1
+                if char not in characteristic_products:
+                    characteristic_products[char] = []
+                characteristic_products[char].append(product.name)
+
+        # Sort by count descending and create AggregatedCharacteristic objects
+        aggregated_characteristics = [
+            AggregatedCharacteristic(
+                label=char,
+                count=count,
+                product_names=characteristic_products[char]
+            )
+            for char, count in characteristic_counts.most_common(10)  # Top 10 characteristics
+        ]
+
+        # Parse real search metrics if provided
+        real_search_metrics = None
+        if "real_search_metrics" in agent_result:
+            metrics_data = agent_result["real_search_metrics"]
+            real_search_metrics = RealSearchMetrics(
+                total_sources_analyzed=metrics_data.get("total_sources_analyzed", 0),
+                reddit_threads=metrics_data.get("reddit_threads", 0),
+                expert_reviews=metrics_data.get("expert_reviews", 0),
+                search_queries_executed=metrics_data.get("search_queries_executed", 0),
+                search_queries=metrics_data.get("search_queries", []),
+                unique_sources=metrics_data.get("unique_sources", 0)
+            )
+
         # Build response
         search_response = SearchResponse(
             before_you_buy=before_you_buy,
@@ -302,7 +384,9 @@ async def search_products(query: SearchQuery):
                 "cached": False
             },
             processing_time_seconds=round(processing_time, 2),
-            educational_insights=agent_result.get("educational_insights", [])
+            educational_insights=agent_result.get("educational_insights", []),
+            aggregated_characteristics=aggregated_characteristics,
+            real_search_metrics=real_search_metrics
         )
 
         # Step 3: Cache the results for future queries
@@ -478,6 +562,7 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                     value_metrics=value_metrics,
                     durability_data=durability_data,
                     practical_metrics=practical_metrics,
+                    characteristics=product_data.get("characteristics", []),
                     key_features=product_data.get("key_features", []),
                     materials=product_data.get("materials", []),
                     why_its_a_gem=product_data.get("why_its_a_gem", ""),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { searchProducts } from '@/lib/api'
 import type { SearchResponse, Product } from '@/types'
@@ -10,6 +10,7 @@ import Header from '@/components/Header'
 import PageTitle from '@/components/PageTitle'
 import CharacteristicsSection from '@/components/CharacteristicsSection'
 import FilterBar from '@/components/FilterBar'
+import FilterOptions from '@/components/FilterOptions'
 import SearchInterface from '@/components/SearchInterface'
 import ProductCard from '@/components/ProductCard'
 import SearchCounter from '@/components/SearchCounter'
@@ -22,6 +23,8 @@ export default function Home() {
   const [currentQuery, setCurrentQuery] = useState<string>('')
   const [currentCategory, setCurrentCategory] = useState<string>('all')
   const [selectedCharacteristics, setSelectedCharacteristics] = useState<string[]>([])
+  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([])
+  const [selectedTier, setSelectedTier] = useState<string | undefined>(undefined)
 
   const searchMutation = useMutation({
     mutationFn: ({ query, maxPrice }: { query: string; maxPrice?: number }) =>
@@ -34,7 +37,10 @@ export default function Home() {
 
   const handleSearch = (query: string, maxPrice?: number) => {
     setCurrentQuery(query)
-    setSelectedCharacteristics([]) // Reset filters on new search
+    // Reset all filters on new search
+    setSelectedCharacteristics([])
+    setSelectedMaterials([])
+    setSelectedTier(undefined)
     searchMutation.mutate({ query, maxPrice })
   }
 
@@ -50,17 +56,27 @@ export default function Home() {
     )
   }
 
-  const handleRemoveFilter = (characteristic: string) => {
+  const handleRemoveCharacteristic = (characteristic: string) => {
     setSelectedCharacteristics(prev => prev.filter(c => c !== characteristic))
   }
 
-  // Load default search on page mount
-  useEffect(() => {
-    if (!results && !searchMutation.isPending) {
-      handleSearch('cast iron skillet')
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Empty dependency array = run once on mount
+  const handleRemoveMaterial = (material: string) => {
+    setSelectedMaterials(prev => prev.filter(m => m !== material))
+  }
+
+  const handleRemoveTier = () => {
+    setSelectedTier(undefined)
+  }
+
+  const handleMaterialClick = (material: string) => {
+    setSelectedMaterials(prev =>
+      prev.includes(material) ? prev.filter(m => m !== material) : [...prev, material]
+    )
+  }
+
+  const handleTierClick = (tier: string) => {
+    setSelectedTier(prev => prev === tier ? undefined : tier)
+  }
 
   const toggleCompare = (product: Product) => {
     if (compareProducts.find(p => p.name === product.name)) {
@@ -91,18 +107,34 @@ export default function Home() {
       ]
     : []
 
-  // Client-side filtering based on selected characteristics
-  const filteredProducts = selectedCharacteristics.length > 0
-    ? allProducts.filter(product => {
-        // Check if product matches the selected characteristic
-        // This is a simple text-based match - you can make this more sophisticated
-        const productText = `${product.name} ${product.why_its_a_gem || ''} ${product.best_for || ''} ${JSON.stringify(product.key_features || [])}`.toLowerCase()
-        return selectedCharacteristics.some(char => {
-          const charLower = char.toLowerCase().replace(/[^\w\s]/g, '')
-          return productText.includes(charLower) || productText.includes(char.toLowerCase())
-        })
-      })
-    : allProducts
+  // Client-side filtering based on multiple filter types
+  // Combines characteristics, materials, and tier filters
+  const filteredProducts = allProducts.filter(product => {
+    // Filter by characteristics
+    if (selectedCharacteristics.length > 0) {
+      const characteristics = product.characteristics || []
+      const hasCharacteristic = selectedCharacteristics.some(selectedChar =>
+        characteristics.includes(selectedChar)
+      )
+      if (!hasCharacteristic) return false
+    }
+
+    // Filter by materials
+    if (selectedMaterials.length > 0) {
+      const materials = product.materials || []
+      const hasMaterial = selectedMaterials.some(selectedMat =>
+        materials.some(mat => mat.toLowerCase().includes(selectedMat.toLowerCase()))
+      )
+      if (!hasMaterial) return false
+    }
+
+    // Filter by tier
+    if (selectedTier) {
+      if (product.tier !== selectedTier.toLowerCase()) return false
+    }
+
+    return true
+  })
 
   // Determine Kenny's Pick (best cost-per-year in Better tier)
   const kennysPick = results && results.results.better.length > 0
@@ -136,11 +168,11 @@ export default function Home() {
         />
       </div>
 
-      {/* Characteristics Section - Clickable */}
-      {!searchMutation.isPending && results && (
+      {/* Characteristics Section - Shows Real Product Characteristics */}
+      {!searchMutation.isPending && results && results.aggregated_characteristics && results.aggregated_characteristics.length > 0 && (
         <CharacteristicsSection
           query={currentQuery}
-          location="Austin, TX"
+          aggregatedCharacteristics={results.aggregated_characteristics}
           selectedCharacteristics={selectedCharacteristics}
           onCharacteristicClick={handleCharacteristicClick}
         />
@@ -150,7 +182,22 @@ export default function Home() {
       {!searchMutation.isPending && results && (
         <FilterBar
           selectedCharacteristics={selectedCharacteristics}
-          onRemoveFilter={handleRemoveFilter}
+          onRemoveCharacteristic={handleRemoveCharacteristic}
+          selectedMaterials={selectedMaterials}
+          onRemoveMaterial={handleRemoveMaterial}
+          selectedTier={selectedTier}
+          onRemoveTier={handleRemoveTier}
+        />
+      )}
+
+      {/* Filter Options - Material & Tier Selection */}
+      {!searchMutation.isPending && results && allProducts.length > 0 && (
+        <FilterOptions
+          products={allProducts}
+          selectedMaterials={selectedMaterials}
+          selectedTier={selectedTier}
+          onMaterialClick={handleMaterialClick}
+          onTierClick={handleTierClick}
         />
       )}
 
@@ -253,10 +300,10 @@ export default function Home() {
           </div>
         )}
 
-        {/* Search Counter - shows after products */}
-        {results && !searchMutation.isPending && allProducts.length > 0 && (
+        {/* Search Counter - shows real search metrics */}
+        {results && !searchMutation.isPending && allProducts.length > 0 && results.real_search_metrics && (
           <SearchCounter
-            targetCount={allProducts.length * 150}
+            metrics={results.real_search_metrics}
             query={currentQuery && currentQuery.trim() ? currentQuery : 'kitchen products'}
           />
         )}
