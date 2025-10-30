@@ -9,8 +9,8 @@ import time
 import json
 from typing import Dict, Any, List, Optional
 import google.generativeai as genai
-from googlesearch import search as google_search
 import httpx
+from google_search_service import get_google_search_service
 
 
 class ContextualKennySearch:
@@ -33,6 +33,9 @@ class ContextualKennySearch:
 
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel('gemini-2.0-flash')
+
+        # Initialize Google Search service (with fallback support)
+        self.search_service = get_google_search_service()
 
     async def _generate_contextual_queries(
         self,
@@ -162,16 +165,10 @@ Make queries specific and actionable. Include "reddit" where appropriate for rea
                 def do_search():
                     """Wrapper for Google search with error handling"""
                     try:
-                        # Add sleep between requests to avoid rate limiting
-                        if query_num > 1:
-                            time.sleep(1)  # 1 second delay between searches
-
-                        results = []
-                        for url in google_search(query, num_results=6, sleep_interval=2, lang='en'):
-                            results.append(url)
-                            if len(results) >= 6:
-                                break
-                        return results
+                        # Use the new Google Search service
+                        # This automatically uses Custom Search API if configured,
+                        # otherwise falls back to googlesearch-python
+                        return self.search_service.search(query, num_results=6)
                     except Exception as e:
                         print(f"     ⚠️  Google search error: {e}")
                         return []
@@ -182,12 +179,14 @@ Make queries specific and actionable. Include "reddit" where appropriate for rea
                 )
 
                 # Format results to match expected structure
+                # search_results already contains dicts with url, title, snippet
                 results = []
-                for url in search_results:
+                for result in search_results:
                     results.append({
-                        "url": url,
-                        "title": url.split('/')[2] if '/' in url else url,  # Extract domain as title
-                        "content": f"Search result from {url}"
+                        "url": result.get("url", ""),
+                        "title": result.get("title", ""),
+                        "content": result.get("snippet", ""),
+                        "display_link": result.get("display_link", "")
                     })
 
                 query_elapsed = time.time() - query_start
