@@ -1,24 +1,15 @@
-'use client'
-
-import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { searchProducts } from '@/lib/api'
-import type { SearchResponse, Product } from '@/types'
-
-import TopBanner from '@/components/TopBanner'
-import Header from '@/components/Header'
-import PageTitle from '@/components/PageTitle'
-import CharacteristicsSection from '@/components/CharacteristicsSection'
-import FilterBar from '@/components/FilterBar'
-import FilterOptions from '@/components/FilterOptions'
-import SearchInterface from '@/components/SearchInterface'
-import ProductCard from '@/components/ProductCard'
-import SearchCounter from '@/components/SearchCounter'
-import TierBadge from '@/components/TierBadge'
-import DurabilityScore from '@/components/DurabilityScore'
-import SearchMetrics from '@/components/SearchMetrics'
+import { Suspense } from 'react'
+import HomePageContent from './HomePageContent'
 
 export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <HomePageContent />
+    </Suspense>
+  )
+}
+
+function HomeOld() {
   const [results, setResults] = useState<SearchResponse | null>(null)
   const [compareProducts, setCompareProducts] = useState<Product[]>([])
   const [currentQuery, setCurrentQuery] = useState<string>('')

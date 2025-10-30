@@ -102,6 +102,11 @@ export default function CharacteristicsSection({
     imageUrl: `https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&auto=format&fit=crop&q=${encodeURIComponent(char.label)}`
   }))
 
+  // Calculate unique product count
+  const uniqueProductCount = new Set(
+    aggregatedCharacteristics.flatMap(c => c.product_names)
+  ).size
+
   return (
     <section className="max-w-[1400px] mx-auto px-10 pb-10">
       {/* Section Header */}
@@ -110,7 +115,7 @@ export default function CharacteristicsSection({
           Kenny's Buying Guide for {displayQuery}
         </h2>
         <p className="text-xs text-gray-500 tracking-wide">
-          Based on {aggregatedCharacteristics.reduce((sum, c) => sum + c.count, 0)} products found, here's what to look for:
+          Based on {uniqueProductCount} product{uniqueProductCount !== 1 ? 's' : ''} found, here's what to look for:
         </p>
       </div>
 

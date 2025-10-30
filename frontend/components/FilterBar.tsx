@@ -1,5 +1,10 @@
 'use client'
 
+import type { ContextFilters, FilterCategory } from './ContextFiltersBar'
+import type { ProductCharacteristics, CharacteristicAnswers } from '@/types/characteristics'
+import FilterDropdown from './FilterDropdown'
+import ValuePreferenceDropdown from './ValuePreferenceDropdown'
+
 interface FilterBarProps {
   // Characteristics filters
   selectedCharacteristics: string[]
@@ -16,6 +21,19 @@ interface FilterBarProps {
   // Tier filter
   selectedTier?: string
   onRemoveTier?: () => void
+
+  // Context filters (Budget, Life Stage, Space, Frequency)
+  contextFilters?: ContextFilters
+  onContextFilterClick?: (category: FilterCategory) => void
+  onClearContextFilters?: () => void
+  onAllFiltersClick?: () => void
+  onValuePreferenceChange?: (value: 'save_now' | 'best_value' | 'buy_for_life') => void
+
+  // Dynamic characteristics props
+  productConfig?: ProductCharacteristics | null
+  characteristicAnswers?: CharacteristicAnswers
+  onCharacteristicAnswer?: (characteristicId: string, value: string | string[]) => void
+  onClearCharacteristicAnswer?: (characteristicId: string) => void
 }
 
 export default function FilterBar({
@@ -26,34 +44,82 @@ export default function FilterBar({
   selectedMaterials,
   onRemoveMaterial,
   selectedTier,
-  onRemoveTier
+  onRemoveTier,
+  contextFilters,
+  onContextFilterClick,
+  onClearContextFilters,
+  onAllFiltersClick,
+  onValuePreferenceChange,
+  productConfig,
+  characteristicAnswers,
+  onCharacteristicAnswer,
+  onClearCharacteristicAnswer
 }: FilterBarProps) {
   const hasCharacteristics = selectedCharacteristics.length > 0
   const hasMaterials = selectedMaterials.length > 0
-  const hasAnyFilters = hasCharacteristics || selectedCategory || hasMaterials || selectedTier
+  const hasContextFilters = contextFilters && Object.values(contextFilters).filter(v => v).length > 0
+  const hasCharacteristicAnswers = characteristicAnswers && Object.keys(characteristicAnswers).length > 0
+  const hasAnyFilters = hasCharacteristics || selectedCategory || hasMaterials || selectedTier || hasContextFilters || hasCharacteristicAnswers
+
+  // Get all characteristics from config (both filters and characteristics)
+  const allCharacteristics = productConfig ? productConfig.characteristics : []
 
   const clearAll = () => {
     selectedCharacteristics.forEach(char => onRemoveCharacteristic(char))
     selectedMaterials.forEach(mat => onRemoveMaterial(mat))
     if (selectedCategory && onRemoveCategory) onRemoveCategory()
     if (selectedTier && onRemoveTier) onRemoveTier()
+    if (hasContextFilters && onClearContextFilters) onClearContextFilters()
+    // Clear dynamic characteristic answers
+    if (characteristicAnswers && onClearCharacteristicAnswer) {
+      Object.keys(characteristicAnswers).forEach(id => onClearCharacteristicAnswer(id))
+    }
   }
+
 
   return (
     <div className="border-t border-b border-gray-200 py-6 px-10 max-w-[1400px] mx-auto">
-      {/* Header Row */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm">☰</span>
-          <span className="text-xs uppercase tracking-wide font-semibold text-gray-700">
-            Filters
-          </span>
-        </div>
+      {/* Filter Buttons Row */}
+      <div className="flex gap-2 flex-wrap mb-4">
+        {/* ALL FILTERS Button */}
+        {onAllFiltersClick && (
+          <button
+            onClick={onAllFiltersClick}
+            className="flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-wider font-semibold bg-white text-black border border-gray-300 hover:border-black transition-colors"
+          >
+            ≡ ALL FILTERS
+          </button>
+        )}
 
+        {/* VALUE PREFERENCE Dropdown */}
+        {contextFilters !== undefined && onClearContextFilters && onValuePreferenceChange && (
+          <ValuePreferenceDropdown
+            value={contextFilters.value_preference}
+            onChange={onValuePreferenceChange}
+            onClear={onClearContextFilters}
+          />
+        )}
+
+        {/* Dynamic Characteristic Dropdowns */}
+        {allCharacteristics.length > 0 && onCharacteristicAnswer && onClearCharacteristicAnswer && (
+          <>
+            {allCharacteristics.map((characteristic) => (
+              <FilterDropdown
+                key={characteristic.id}
+                characteristic={characteristic}
+                value={characteristicAnswers?.[characteristic.id]}
+                onChange={(value) => onCharacteristicAnswer(characteristic.id, value)}
+                onClear={() => onClearCharacteristicAnswer(characteristic.id)}
+              />
+            ))}
+          </>
+        )}
+
+        {/* Clear All Button */}
         {hasAnyFilters && (
           <button
             onClick={clearAll}
-            className="text-xs text-gray-600 hover:text-black uppercase tracking-wide underline"
+            className="ml-auto px-3 py-1.5 text-[11px] text-gray-600 hover:text-black uppercase tracking-wide underline"
           >
             Clear All
           </button>
@@ -62,12 +128,6 @@ export default function FilterBar({
 
       {/* Filter Categories */}
       <div className="space-y-4">
-        {/* No Filters State */}
-        {!hasAnyFilters && (
-          <div className="text-xs text-gray-500 tracking-wide">
-            Click on characteristics above or select filters below to refine your results
-          </div>
-        )}
 
         {/* All Filters Section */}
         {hasAnyFilters && (
@@ -76,6 +136,24 @@ export default function FilterBar({
               All Filters
             </div>
             <div className="flex gap-2 flex-wrap">
+              {/* Context filter pill */}
+              {contextFilters?.value_preference && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-black text-white text-xs tracking-wide">
+                  <span className="text-[10px] text-gray-300 uppercase">Value:</span>
+                  <span>
+                    {contextFilters.value_preference === 'save_now' && 'Save Now'}
+                    {contextFilters.value_preference === 'best_value' && 'Best Value'}
+                    {contextFilters.value_preference === 'buy_for_life' && 'Buy for Life'}
+                  </span>
+                  <button
+                    onClick={onClearContextFilters}
+                    className="text-white hover:text-gray-300 text-xs font-bold ml-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               {/* Category pill */}
               {selectedCategory && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-black text-white text-xs tracking-wide">
@@ -136,6 +214,34 @@ export default function FilterBar({
                   </button>
                 </div>
               ))}
+
+              {/* Dynamic characteristic answer pills */}
+              {characteristicAnswers && onClearCharacteristicAnswer && Object.entries(characteristicAnswers).map(([id, value]) => {
+                const characteristic = allCharacteristics.find(c => c.id === id)
+                if (!characteristic) return null
+
+                const displayValue = Array.isArray(value)
+                  ? value.length === 1
+                    ? characteristic.options.find(o => o.value === value[0])?.label || value[0]
+                    : `${value.length} selected`
+                  : characteristic.options.find(o => o.value === value)?.label || value
+
+                return (
+                  <div
+                    key={id}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-black text-white text-xs tracking-wide"
+                  >
+                    <span className="text-[10px] text-gray-300 uppercase">{characteristic.filterLabel}:</span>
+                    <span>{displayValue}</span>
+                    <button
+                      onClick={() => onClearCharacteristicAnswer(id)}
+                      className="text-white hover:text-gray-300 text-xs font-bold ml-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
