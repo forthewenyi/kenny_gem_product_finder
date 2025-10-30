@@ -448,11 +448,11 @@ export default function HomePageContent() {
                 <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Key Characteristics</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {compareProducts.map((product, idx) => (
-                    <div key={idx} className="space-y-2">
+                    <div key={idx} className="space-y-1">
                       {product.characteristics && product.characteristics.length > 0 ? (
                         product.characteristics.slice(0, 5).map((char, charIdx) => (
-                          <div key={charIdx} className="text-xs px-3 py-1.5 bg-gray-50 rounded">
-                            {char}
+                          <div key={charIdx} className="text-xs text-gray-700">
+                            • {char}
                           </div>
                         ))
                       ) : (
@@ -472,7 +472,7 @@ export default function HomePageContent() {
                       {product.materials && product.materials.length > 0 ? (
                         <div className="space-y-1">
                           {product.materials.map((mat, matIdx) => (
-                            <div key={matIdx} className="text-xs">• {mat}</div>
+                            <div key={matIdx} className="text-xs text-gray-700">• {mat}</div>
                           ))}
                         </div>
                       ) : (
@@ -544,34 +544,6 @@ export default function HomePageContent() {
                               ))}
                             </div>
                           )}
-
-                          {/* Data Sources */}
-                          {product.durability_data.data_sources &&
-                           product.durability_data.data_sources.length > 0 && (
-                            <div className="pt-2 border-t">
-                              <div className="text-xs text-gray-500 mb-1">
-                                Based on {product.durability_data.data_sources.length} source{product.durability_data.data_sources.length !== 1 ? 's' : ''}:
-                              </div>
-                              {product.durability_data.data_sources.slice(0, 2).map((source, i) => {
-                                try {
-                                  const hostname = new URL(source).hostname;
-                                  return (
-                                    <div key={i} className="text-[10px] text-blue-600 truncate">
-                                      <a href={source} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                        {hostname}
-                                      </a>
-                                    </div>
-                                  );
-                                } catch (e) {
-                                  return (
-                                    <div key={i} className="text-[10px] text-gray-500 truncate">
-                                      {source}
-                                    </div>
-                                  );
-                                }
-                              })}
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <p className="text-xs text-gray-400">No durability data</p>
@@ -587,7 +559,7 @@ export default function HomePageContent() {
                 <div className="grid grid-cols-3 gap-4">
                   {compareProducts.map((product, idx) => (
                     <div key={idx}>
-                      <p className="text-xs">{product.best_for || 'General use'}</p>
+                      <p className="text-xs text-gray-700">{product.best_for || 'General use'}</p>
                     </div>
                   ))}
                 </div>
@@ -620,10 +592,10 @@ export default function HomePageContent() {
                   {compareProducts.map((product, idx) => (
                     <div key={idx}>
                       {product.practical_metrics ? (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           {/* Cleaning */}
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
                               <div className="text-xs font-semibold text-gray-700">🧼 Cleaning</div>
                               <div className="text-xs font-bold text-gray-900">
                                 {product.practical_metrics.cleaning_time_minutes
@@ -637,8 +609,8 @@ export default function HomePageContent() {
                           </div>
 
                           {/* Setup */}
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
                               <div className="text-xs font-semibold text-gray-700">⚙️ Setup</div>
                               <div className="text-xs font-bold text-gray-900">
                                 {product.practical_metrics.setup_time || 'N/A'}
@@ -650,8 +622,8 @@ export default function HomePageContent() {
                           </div>
 
                           {/* Learning Curve */}
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
                               <div className="text-xs font-semibold text-gray-700">📚 Learning Curve</div>
                               <div className="text-xs font-bold text-gray-900">
                                 {product.practical_metrics.learning_curve || 'N/A'}
@@ -663,8 +635,8 @@ export default function HomePageContent() {
                           </div>
 
                           {/* Maintenance */}
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
                               <div className="text-xs font-semibold text-gray-700">🔧 Maintenance</div>
                               <div className="text-xs font-bold text-gray-900">
                                 {product.practical_metrics.maintenance_level || product.maintenance_level || 'N/A'}
@@ -699,7 +671,7 @@ export default function HomePageContent() {
                             ? product.lifespan
                             : `${product.lifespan} years`}
                       </div>
-                      {product.durability_data?.average_lifespan_years && (
+                      {product.durability_data?.total_user_reports > 0 && (
                         <div className="text-[10px] text-gray-500">
                           Based on {product.durability_data.total_user_reports} user reports
                         </div>
@@ -756,25 +728,17 @@ export default function HomePageContent() {
 
                     return (
                       <div key={idx}>
-                        <div className="space-y-2">
-                          {uniqueChars.length > 0 && (
-                            <div>
-                              <div className="text-xs font-medium text-gray-700 mb-1">Unique Features:</div>
-                              {uniqueChars.slice(0, 3).map((char, i) => (
-                                <div key={i} className="text-xs text-blue-600">• {char}</div>
-                              ))}
-                            </div>
-                          )}
-                          {product.key_features && (
-                            <div className="pt-2">
-                              <div className="text-xs text-gray-600">
-                                {Array.isArray(product.key_features)
-                                  ? product.key_features[0]
-                                  : product.key_features}
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        {uniqueChars.length > 0 ? (
+                          <div className="space-y-1">
+                            {uniqueChars.slice(0, 5).map((char, i) => (
+                              <div key={i} className="text-xs text-gray-700">• {char}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400">
+                            Shares characteristics with other options
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -837,14 +801,38 @@ export default function HomePageContent() {
                             </div>
                           ))}
 
-                          {/* Data sources */}
-                          {product.durability_data?.total_user_reports && (
-                            <div className="pt-2 border-t">
-                              <div className="text-[10px] text-gray-500 text-center">
-                                Based on {product.durability_data.total_user_reports} user reports
-                              </div>
+                          {/* Sources Citation */}
+                          <div className="pt-3 mt-3 border-t border-gray-200">
+                            <div className="text-[10px] text-gray-500 mb-2 font-semibold">
+                              Sources analyzed:
                             </div>
-                          )}
+                            <div className="space-y-1">
+                              {/* Prioritize durability data sources, fall back to web sources */}
+                              {(product.durability_data?.data_sources && product.durability_data.data_sources.length > 0
+                                ? product.durability_data.data_sources
+                                : product.web_sources || []
+                              ).slice(0, 3).map((source, i) => {
+                                try {
+                                  const url = typeof source === 'string' ? source : source.url;
+                                  const hostname = new URL(url).hostname.replace('www.', '');
+                                  return (
+                                    <div key={i} className="text-[10px] text-blue-600">
+                                      <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                        • {hostname}
+                                      </a>
+                                    </div>
+                                  );
+                                } catch (e) {
+                                  const displaySource = typeof source === 'string' ? source : source.url || 'Unknown source';
+                                  return (
+                                    <div key={i} className="text-[10px] text-gray-500">
+                                      • {displaySource}
+                                    </div>
+                                  );
+                                }
+                              })}
+                            </div>
+                          </div>
                         </div>
                       </details>
                     );
