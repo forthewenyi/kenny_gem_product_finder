@@ -19,7 +19,7 @@ from contextual_search import get_contextual_search
 
 
 # ========== CONFIGURE YOUR TEST HERE ==========
-QUERY = "chef knife"  # Change this to test different products
+QUERY = "cast iron skillet"  # Change this to test different products
 # ===============================================
 
 

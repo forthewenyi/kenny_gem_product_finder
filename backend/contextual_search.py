@@ -158,12 +158,27 @@ Make queries specific and actionable. Include "reddit" where appropriate for rea
 
                 # Run Google search in thread pool (it's synchronous)
                 loop = asyncio.get_event_loop()
+
+                def do_search():
+                    """Wrapper for Google search with error handling"""
+                    try:
+                        # Add sleep between requests to avoid rate limiting
+                        if query_num > 1:
+                            time.sleep(1)  # 1 second delay between searches
+
+                        results = []
+                        for url in google_search(query, num_results=6, sleep_interval=2, lang='en'):
+                            results.append(url)
+                            if len(results) >= 6:
+                                break
+                        return results
+                    except Exception as e:
+                        print(f"     ⚠️  Google search error: {e}")
+                        return []
+
                 search_results = await asyncio.wait_for(
-                    loop.run_in_executor(
-                        None,
-                        lambda: list(google_search(query, num_results=6))
-                    ),
-                    timeout=15.0
+                    loop.run_in_executor(None, do_search),
+                    timeout=30.0  # Increased timeout to 30 seconds
                 )
 
                 # Format results to match expected structure
@@ -176,20 +191,26 @@ Make queries specific and actionable. Include "reddit" where appropriate for rea
                     })
 
                 query_elapsed = time.time() - query_start
-                print(f"     ✓ [{phase}] Query {query_num} completed in {query_elapsed:.1f}s ({len(results)} results)")
+
+                if len(results) > 0:
+                    print(f"     ✓ [{phase}] Query {query_num} completed in {query_elapsed:.1f}s ({len(results)} results)")
+                else:
+                    print(f"     ⚠️  [{phase}] Query {query_num} completed but found 0 results (possible rate limiting)")
 
                 return {
                     "phase": phase,
                     "query": query,
                     "results": results,
-                    "success": True
+                    "success": len(results) > 0
                 }
 
             except asyncio.TimeoutError:
-                print(f"     ⏱️  [{phase}] Query {query_num} timed out")
+                print(f"     ⏱️  [{phase}] Query {query_num} timed out after 30s")
                 return {"phase": phase, "query": query, "results": [], "success": False}
             except Exception as e:
                 print(f"     ⚠️  [{phase}] Query {query_num} failed: {e}")
+                import traceback
+                traceback.print_exc()
                 return {"phase": phase, "query": query, "results": [], "success": False}
 
         # Create all search tasks

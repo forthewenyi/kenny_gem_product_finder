@@ -518,7 +518,11 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                 # Handle trade_offs (might be string or list)
                 trade_offs_raw = product_data.get("trade_offs", [])
                 if isinstance(trade_offs_raw, str):
-                    trade_offs = [trade_offs_raw] if trade_offs_raw else []
+                    # Split by period for sentence-based trade-offs
+                    if ". " in trade_offs_raw:
+                        trade_offs = [t.strip() for t in trade_offs_raw.split(". ") if t.strip()]
+                    else:
+                        trade_offs = [trade_offs_raw] if trade_offs_raw else []
                 else:
                     trade_offs = trade_offs_raw
 
@@ -574,11 +578,40 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
 
                 # Parse practical_metrics if provided by AI
                 from models import PracticalMetrics
+                import re
                 practical_metrics = None
                 if 'practical_metrics' in product_data and product_data['practical_metrics']:
                     pm_data = product_data['practical_metrics']
+
+                    # Extract cleaning_time_minutes from strings like "1 minute" or "5 minutes"
+                    cleaning_time = pm_data.get('cleaning_time_minutes') or pm_data.get('cleaning_time')
+                    cleaning_time_minutes = None
+                    if cleaning_time:
+                        if isinstance(cleaning_time, (int, float)):
+                            cleaning_time_minutes = int(cleaning_time)
+                        elif isinstance(cleaning_time, str):
+                            match = re.search(r'(\d+)', cleaning_time)
+                            if match:
+                                cleaning_time_minutes = int(match.group(1))
+
+                    # Extract weight_lbs from strings like "6.3 ounces" or "1.5 lbs"
+                    weight = pm_data.get('weight_lbs') or pm_data.get('weight')
+                    weight_lbs = None
+                    if weight:
+                        if isinstance(weight, (int, float)):
+                            weight_lbs = float(weight)
+                        elif isinstance(weight, str):
+                            match = re.search(r'([\d.]+)', weight)
+                            if match:
+                                value = float(match.group(1))
+                                # Convert ounces to pounds if necessary
+                                if 'oz' in weight.lower() or 'ounce' in weight.lower():
+                                    weight_lbs = value / 16.0
+                                else:
+                                    weight_lbs = value
+
                     practical_metrics = PracticalMetrics(
-                        cleaning_time_minutes=pm_data.get('cleaning_time_minutes'),
+                        cleaning_time_minutes=cleaning_time_minutes,
                         cleaning_details=pm_data.get('cleaning_details', ''),
                         setup_time=pm_data.get('setup_time', 'Ready'),
                         setup_details=pm_data.get('setup_details', ''),
@@ -586,7 +619,7 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                         learning_details=pm_data.get('learning_details', ''),
                         maintenance_level=pm_data.get('maintenance_level', 'Medium'),
                         maintenance_details=pm_data.get('maintenance_details', ''),
-                        weight_lbs=pm_data.get('weight_lbs'),
+                        weight_lbs=weight_lbs,
                         weight_notes=pm_data.get('weight_notes'),
                         dishwasher_safe=pm_data.get('dishwasher_safe', False),
                         oven_safe=pm_data.get('oven_safe', False),
@@ -594,17 +627,31 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                     )
 
                 # Normalize fields that should be lists (AI sometimes returns strings or dicts)
+                # Fix: If materials is a single string, split by comma or keep as single-item list
                 materials = product_data.get("materials", [])
                 if isinstance(materials, str):
-                    materials = [materials] if materials else []
+                    # Split by comma if it contains multiple materials
+                    if "," in materials:
+                        materials = [m.strip() for m in materials.split(",") if m.strip()]
+                    else:
+                        materials = [materials] if materials else []
 
+                # Fix: If key_features is a single string, split by period or keep as single-item list
                 key_features = product_data.get("key_features", [])
                 if isinstance(key_features, str):
-                    key_features = [key_features] if key_features else []
+                    # Split by period for sentence-based features
+                    if ". " in key_features:
+                        key_features = [f.strip() for f in key_features.split(". ") if f.strip()]
+                    else:
+                        key_features = [key_features] if key_features else []
 
                 characteristics = product_data.get("characteristics", [])
                 if isinstance(characteristics, str):
-                    characteristics = [characteristics] if characteristics else []
+                    # Split by comma if it contains multiple characteristics
+                    if "," in characteristics:
+                        characteristics = [c.strip() for c in characteristics.split(",") if c.strip()]
+                    else:
+                        characteristics = [characteristics] if characteristics else []
                 elif isinstance(characteristics, dict):
                     # Convert dict to list of "key: value" strings
                     characteristics = [f"{k}: {v}" for k, v in characteristics.items()]
