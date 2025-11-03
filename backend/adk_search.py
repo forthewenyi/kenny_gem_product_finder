@@ -1,0 +1,480 @@
+"""
+ADK-based product search using Google Agent Development Kit.
+Uses SequentialAgent to orchestrate 3-phase research pipeline:
+  1. Context Discovery → 2. Product Finding → 3. Synthesis
+Each agent passes output to next via state management (output_key).
+"""
+import os
+import json
+import uuid
+from typing import Dict, Any, List, Optional
+from dotenv import load_dotenv
+from google.adk.agents import Agent, SequentialAgent
+from google.adk.tools import FunctionTool
+from google.adk import Runner
+from google.adk.sessions import InMemorySessionService
+from google import genai
+from google.genai import types
+from google_search_service import get_google_search_service
+
+# Load environment variables
+load_dotenv()
+
+# Initialize Google Search service
+_search_service = get_google_search_service()
+
+
+async def google_search(query: str, num_results: int = 6) -> str:
+    """
+    Search Google for information using Custom Search API or fallback.
+
+    OPTIMIZED FOR PARALLEL EXECUTION: When you need multiple searches, call this
+    function multiple times in parallel rather than sequentially. Each search is
+    independent and benefits from concurrent execution.
+
+    Args:
+        query: The search query string (single, specific query)
+        num_results: Number of results to return (default 6, max 10)
+
+    Returns:
+        JSON string with search results including titles, links, and snippets
+    """
+    import time
+    start_time = time.time()
+
+    # Log search start with truncated query
+    query_short = query[:50] + "..." if len(query) > 50 else query
+    print(f"🔍 [{time.strftime('%H:%M:%S')}] Search START: {query_short}")
+
+    try:
+        results = await _search_service.async_search(query, num_results=min(num_results, 10))
+
+        elapsed = time.time() - start_time
+        print(f"✅ [{time.strftime('%H:%M:%S')}] Search DONE ({elapsed:.2f}s): {query_short}")
+
+        # Format results as JSON string for the LLM
+        return json.dumps({
+            "query": query,
+            "num_results": len(results),
+            "results": results
+        }, indent=2)
+    except Exception as e:
+        elapsed = time.time() - start_time
+        print(f"❌ [{time.strftime('%H:%M:%S')}] Search FAILED ({elapsed:.2f}s): {query_short}")
+        return json.dumps({"error": f"Search failed: {str(e)}", "query": query})
+
+
+# Wrap the search function as an ADK FunctionTool
+google_search_tool = FunctionTool(func=google_search)
+
+
+class ADKProductSearch:
+    """
+    Sequential agent-based product search using Google ADK.
+
+    Architecture:
+    - SequentialAgent pipeline orchestrates 3 specialized agents
+    - Context Discovery Agent: Researches usage patterns (saves to 'context_research')
+    - Product Finder Agent: Finds products (reads 'context_research', saves to 'product_findings')
+    - Synthesis Agent: Creates Good/Better/Best tiers (reads both, outputs final JSON)
+    """
+
+    def __init__(self):
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY not found in environment variables")
+
+        # Initialize model for agents
+        self.model = "gemini-2.5-flash"
+
+        # Create specialized research agents
+        self.context_agent = self._create_context_agent()
+        self.product_finder_agent = self._create_product_finder_agent()
+        self.synthesis_agent = self._create_synthesis_agent()
+
+        # Create sequential pipeline (no coordinator needed!)
+        self.pipeline = self._create_pipeline()
+
+        # Initialize ADK runner with session service
+        self.session_service = InMemorySessionService()
+        self.runner = Runner(
+            app_name="product_research",
+            agent=self.pipeline,
+            session_service=self.session_service
+        )
+
+    def _create_context_agent(self) -> Agent:
+        """Agent that researches product context and usage patterns"""
+        return Agent(
+            name="context_discovery_agent",
+            model=self.model,
+            description="Researches how people actually use products and what matters in real-world usage",
+            instruction="""You are a product research expert focused on understanding real-world usage.
+
+Your task: Research how people actually use the product in daily life.
+
+IMPORTANT - PARALLEL EXECUTION: Call google_search multiple times IN PARALLEL for efficiency.
+Make 3-4 search calls simultaneously, not sequentially. Example:
+- Call google_search for "product reddit usage patterns"
+- Call google_search for "product durability issues"
+- Call google_search for "product material science"
+ALL AT ONCE in the same response.
+
+When searching:
+1. Focus on Reddit discussions and user forums for authentic experiences
+2. Look for usage patterns, common scenarios, and living situation constraints
+3. Identify what actually matters vs marketing claims
+4. Find material science insights (durability, compatibility, longevity)
+
+Search topics (make ALL these calls in parallel):
+- Real user experiences and usage patterns
+- Material properties and durability insights
+- Common problems and what to avoid
+
+Return ONLY a JSON summary with:
+{
+  "usage_patterns": ["pattern1", "pattern2"],
+  "key_materials": ["material insights"],
+  "critical_factors": ["what really matters"],
+  "common_issues": ["what to avoid"]
+}
+""",
+            tools=[google_search_tool],
+            output_key="context_research"
+        )
+
+    def _create_product_finder_agent(self) -> Agent:
+        """Agent that finds specific products and reads reviews"""
+        return Agent(
+            name="product_finder_agent",
+            model=self.model,
+            description="Finds specific products, reads reviews, and identifies top recommendations",
+            instruction="""You are a product research expert focused on finding the best specific products.
+
+Context from previous research: {context_research}
+
+Your task: Find specific product recommendations that align with the usage patterns and critical factors identified.
+
+IMPORTANT - PARALLEL EXECUTION: Call google_search multiple times IN PARALLEL for speed.
+Make 4-6 search calls simultaneously, not one-by-one. Example:
+- Call google_search for "best [product] reddit 2024"
+- Call google_search for "[product] wirecutter review"
+- Call google_search for "[product] durability long term"
+- Call google_search for "[specific brand] [product] review"
+ALL AT ONCE in the same response.
+
+Search topics (make ALL these calls in parallel):
+- Community-recommended specific products ("best [product] reddit")
+- Professional review site rankings (Wirecutter, Serious Eats)
+- Product-specific durability reports
+- Specific highly-rated products by brand
+- Price comparisons and value analysis
+
+For each product found, extract ALL of these fields:
+- name: Full product name
+- brand: Brand name
+- price: Numeric price (e.g. 45.99)
+- lifespan: Expected lifespan in years (e.g. 5, 10, or "10-15")
+- materials: Array of materials (e.g. ["cast iron", "stainless steel"])
+- key_features: Array of key features (e.g. ["dishwasher safe", "oven safe to 500°F"])
+- characteristics: Array of searchable characteristics (e.g. ["Non-stick", "Heavy-duty", "Ergonomic handle"])
+- why_its_a_gem: 2-3 sentences explaining why this product is recommended
+- best_for: Specific use case (e.g. "Daily cooking for families of 4+")
+- trade_offs: Array of cons or limitations (e.g. ["Heavy weight may tire some users"])
+- web_sources: Array of source URLs where you found this info
+- purchase_links: Array of {name, url} where to buy (e.g. Amazon, manufacturer site)
+- professional_reviews: Array of review site names (e.g. ["Wirecutter", "Serious Eats"])
+
+Return ONLY a JSON with 6-10 products total:
+{
+  "products": [
+    {
+      "name": "Lodge 10.25 Inch Cast Iron Skillet",
+      "brand": "Lodge",
+      "price": 19.99,
+      "lifespan": "30+",
+      "materials": ["cast iron"],
+      "key_features": ["Pre-seasoned", "Oven safe", "Induction compatible"],
+      "characteristics": ["Heavy-duty", "Non-stick when seasoned", "Versatile"],
+      "why_its_a_gem": "The Lodge Cast Iron Skillet is an industry standard...",
+      "best_for": "Budget-conscious home cooks who want a durable workhorse",
+      "trade_offs": ["Requires seasoning maintenance", "Heavy weight"],
+      "web_sources": ["https://www.seriouseats.com/..."],
+      "purchase_links": [{"name": "Amazon", "url": "https://amazon.com/..."}],
+      "professional_reviews": ["Wirecutter", "Serious Eats"]
+    }
+  ]
+}
+""",
+            tools=[google_search_tool],
+            output_key="product_findings"
+        )
+
+    def _create_synthesis_agent(self) -> Agent:
+        """Agent that synthesizes all research into final recommendations"""
+        return Agent(
+            name="synthesis_agent",
+            model=self.model,
+            description="Analyzes all research and creates tiered product recommendations",
+            instruction="""You are a product analysis expert who synthesizes research into actionable recommendations.
+
+Context Research: {context_research}
+Product Findings: {product_findings}
+
+Your task: Analyze products and organize them into Good/Better/Best tiers.
+
+IMPORTANT: Preserve ALL fields from product_findings for each product. Do not drop any fields.
+
+Tier Guidelines:
+- GOOD TIER: Budget-friendly ($0-50), solid basics, good value (2-3 products)
+- BETTER TIER: Mid-range ($50-150), better features/durability (2-3 products)
+- BEST TIER: Premium ($150+), exceptional quality/longevity (2-3 products)
+
+CRITICAL: Output ONLY this JSON structure (no markdown, no explanations):
+
+{
+  "good_tier": [
+    {
+      "name": "Full Product Name",
+      "brand": "Brand Name",
+      "price": 45.99,
+      "lifespan": "10-15",
+      "materials": ["material1"],
+      "key_features": ["feature1", "feature2"],
+      "characteristics": ["char1", "char2"],
+      "why_its_a_gem": "Why this product is recommended...",
+      "best_for": "Specific use case",
+      "trade_offs": ["con1", "con2"],
+      "web_sources": ["https://url1.com"],
+      "purchase_links": [{"name": "Amazon", "url": "https://..."}],
+      "professional_reviews": ["Wirecutter"]
+    }
+  ],
+  "better_tier": [2-3 products with ALL fields],
+  "best_tier": [2-3 products with ALL fields],
+  "key_insights": ["Based on context research, users should prioritize..."],
+  "what_to_avoid": ["Common issue to avoid..."]
+}
+
+For each product, copy ALL fields from product_findings. Add to the appropriate tier based on price.
+Output ONLY the JSON - no markdown blocks, no explanations.
+""",
+            tools=[]  # Synthesis agent doesn't need to search
+        )
+
+    def _create_pipeline(self) -> SequentialAgent:
+        """Create sequential pipeline for product research"""
+        return SequentialAgent(
+            name="product_research_pipeline",
+            description="Sequential pipeline: Context Discovery → Product Finding → Synthesis",
+            sub_agents=[
+                self.context_agent,
+                self.product_finder_agent,
+                self.synthesis_agent
+            ]
+        )
+
+    async def search(
+        self,
+        query: str,
+        max_price: Optional[float] = None,
+        user_context: Optional[Dict[str, Any]] = None,
+        characteristics: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute ADK-based product search
+
+        Args:
+            query: Product search query (e.g., "cast iron skillet")
+            max_price: Maximum price filter
+            user_context: User context information
+            characteristics: User characteristic preferences
+
+        Returns:
+            Structured search results with Good/Better/Best recommendations
+        """
+        # Build context string
+        context_parts = [f"Find the best {query}"]
+
+        if max_price:
+            context_parts.append(f"with budget up to ${max_price}")
+
+        if characteristics:
+            context_parts.append("\nUser preferences:")
+            for key, value in characteristics.items():
+                readable_key = key.replace('_', ' ').title()
+                if isinstance(value, list):
+                    context_parts.append(f"  - {readable_key}: {', '.join(str(v) for v in value)}")
+                else:
+                    context_parts.append(f"  - {readable_key}: {value}")
+
+        if user_context:
+            context_parts.append(f"\nAdditional context: {json.dumps(user_context)}")
+
+        search_request = "\n".join(context_parts)
+
+        print(f"\n🤖 Starting ADK agent-based search for: {query}")
+        print(f"📋 Request: {search_request}\n")
+
+        # Execute the agent workflow
+        import time
+        workflow_start = time.time()
+
+        try:
+            # runner.run_async returns an async generator that yields events
+            # Create properly formatted Content object for the message
+            message_content = types.Content(
+                role="user",
+                parts=[types.Part(text=search_request)]
+            )
+
+            # Create a new session for this search request
+            user_id = "default_user"
+            session_id = str(uuid.uuid4())
+
+            # Create the session using the session service
+            await self.session_service.create_session(
+                app_name="product_research",
+                user_id=user_id,
+                session_id=session_id
+            )
+
+            final_response_text = ""
+            event_count = 0
+
+            async for event in self.runner.run_async(
+                user_id=user_id,
+                session_id=session_id,
+                new_message=message_content
+            ):
+                event_count += 1
+
+                # Log function calls for profiling
+                if event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if hasattr(part, 'function_call'):
+                            print(f"📞 [{time.strftime('%H:%M:%S')}] Function call by {event.author}")
+
+                # Capture final response from synthesis_agent (last agent in pipeline)
+                # SequentialAgent passes through final responses from its last sub-agent
+                if event.author == "synthesis_agent" and event.is_final_response():
+                    if event.content and event.content.parts:
+                        for part in event.content.parts:
+                            if hasattr(part, 'text') and part.text:
+                                final_response_text = part.text
+
+            workflow_elapsed = time.time() - workflow_start
+            print(f"\n⏱️  Total workflow time: {workflow_elapsed:.2f}s ({event_count} events)")
+
+            result_text = final_response_text
+
+            print(f"\n✅ ADK search completed")
+            print(f"📊 Response length: {len(result_text)} characters\n")
+
+            # Try to parse as JSON
+            try:
+                if "```json" in result_text:
+                    result_text = result_text.split("```json")[1].split("```")[0]
+                elif "```" in result_text:
+                    result_text = result_text.split("```")[1].split("```")[0]
+
+                result = json.loads(result_text.strip())
+            except json.JSONDecodeError:
+                # If not JSON, wrap in structure
+                result = {
+                    "good_tier": [],
+                    "better_tier": [],
+                    "best_tier": [],
+                    "key_insights": [result_text],
+                    "raw_response": result_text
+                }
+
+            # Add aggregated characteristics
+            result["aggregated_characteristics"] = self._aggregate_characteristics(result)
+
+            return result
+
+        except Exception as e:
+            print(f"❌ ADK search error: {e}")
+            import traceback
+            traceback.print_exc()
+
+            return {
+                "good_tier": [],
+                "better_tier": [],
+                "best_tier": [],
+                "error": str(e),
+                "aggregated_characteristics": []
+            }
+
+    def _aggregate_characteristics(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Aggregate characteristics from all products"""
+        characteristic_counts = {}
+        characteristic_products = {}
+
+        all_products = (
+            result.get("good_tier", []) +
+            result.get("better_tier", []) +
+            result.get("best_tier", [])
+        )
+
+        for product in all_products:
+            product_name = product.get("name", "Unknown")
+            characteristics = product.get("characteristics", [])
+
+            if isinstance(characteristics, str):
+                characteristics = [characteristics]
+
+            for char in characteristics:
+                char = char.strip()
+                if not char:
+                    continue
+
+                if char not in characteristic_counts:
+                    characteristic_counts[char] = 0
+                    characteristic_products[char] = []
+
+                characteristic_counts[char] += 1
+                characteristic_products[char].append(product_name)
+
+        # Build aggregated array
+        aggregated = []
+        for char, count in sorted(characteristic_counts.items(), key=lambda x: x[1], reverse=True):
+            aggregated.append({
+                "label": char,
+                "count": count,
+                "product_names": characteristic_products[char]
+            })
+
+        return aggregated
+
+
+# Factory function for compatibility
+async def get_adk_search(
+    query: str,
+    max_price: Optional[float] = None,
+    location: str = "United States",  # Kept for API compatibility, unused in ADK
+    user_context: Optional[Dict[str, Any]] = None,
+    characteristics: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Factory function to create and execute ADK search
+
+    Args:
+        query: Product search query
+        max_price: Maximum price filter
+        location: User location (kept for API compatibility)
+        user_context: User context information
+        characteristics: User characteristic preferences
+
+    Returns:
+        Structured search results
+    """
+    _ = location  # Unused, kept for API compatibility
+    searcher = ADKProductSearch()
+    return await searcher.search(
+        query=query,
+        max_price=max_price,
+        user_context=user_context,
+        characteristics=characteristics
+    )

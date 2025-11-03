@@ -152,6 +152,7 @@ class SearchQuery(BaseModel):
     tier_preference: Optional[TierLevel] = None
     max_price: Optional[float] = Field(None, gt=0)
     context: Optional[Dict[str, str]] = Field(default_factory=dict, description="User context like location, experience level")
+    characteristics: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User's characteristic selections for personalized search")
 
 
 class TierResults(BaseModel):

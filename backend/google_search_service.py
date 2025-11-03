@@ -22,6 +22,8 @@ from typing import List, Dict, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import time
+import httpx
+import asyncio
 
 
 class GoogleSearchService:
@@ -108,6 +110,73 @@ class GoogleSearchService:
         except Exception as e:
             print(f"⚠️  Unexpected error in Google search: {e}")
             return self._fallback_search(query, num_results)
+
+    async def async_search(
+        self,
+        query: str,
+        num_results: int = 10,
+        safe_search: str = "off"
+    ) -> List[Dict[str, str]]:
+        """
+        Async search using Google Custom Search API via httpx.
+
+        Args:
+            query: Search query string
+            num_results: Number of results to return (max 10 per request)
+            safe_search: "off", "medium", or "high"
+
+        Returns:
+            List of dicts with keys: url, title, snippet
+        """
+        if not self.use_official_api:
+            # Fall back to sync search in thread
+            return await asyncio.to_thread(self._fallback_search, query, num_results)
+
+        try:
+            # Google Custom Search API REST endpoint
+            url = "https://www.googleapis.com/customsearch/v1"
+            params = {
+                "key": self.api_key,
+                "cx": self.search_engine_id,
+                "q": query,
+                "num": min(num_results, 10),
+                "safe": safe_search
+            }
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+
+            # Parse results
+            results = []
+            if "items" in data:
+                for item in data["items"]:
+                    results.append({
+                        "url": item.get("link", ""),
+                        "title": item.get("title", ""),
+                        "snippet": item.get("snippet", ""),
+                        "display_link": item.get("displayLink", "")
+                    })
+
+            return results
+
+        except httpx.HTTPStatusError as e:
+            error_msg = f"HTTP {e.response.status_code}"
+            print(f"⚠️  Google Custom Search API error: {error_msg}")
+
+            # Check for quota exceeded
+            if e.response.status_code == 429:
+                print("   Daily quota exceeded. Consider upgrading or using fallback.")
+            elif e.response.status_code == 400:
+                print("   Invalid API key or Search Engine ID. Check .env configuration.")
+
+            # Fallback to sync search in thread
+            return await asyncio.to_thread(self._fallback_search, query, num_results)
+
+        except Exception as e:
+            print(f"⚠️  Unexpected error in async Google search: {e}")
+            return await asyncio.to_thread(self._fallback_search, query, num_results)
 
     def _fallback_search(self, query: str, num_results: int) -> List[Dict[str, str]]:
         """

@@ -52,15 +52,10 @@ export default function HomePageContent() {
       const config = getCharacteristicsForQuery(currentQuery)
       setProductConfig(config)
 
-      // Apply remembered answers for this product category
-      if (config) {
-        const characteristicIds = config.characteristics
-          .filter(c => c.rememberAcrossSearches)
-          .map(c => c.id)
-        applyRememberedAnswers(characteristicIds)
-      }
+      // Don't auto-apply remembered answers - let user select manually
+      // This prevents filters from auto-filling on page refresh
     }
-  }, [currentQuery, applyRememberedAnswers])
+  }, [currentQuery])
 
   // Save answers to memory when they change
   useEffect(() => {
@@ -73,11 +68,12 @@ export default function HomePageContent() {
   }, [characteristicAnswers, productConfig, saveAnswersToMemory])
 
   const searchMutation = useMutation({
-    mutationFn: ({ query, maxPrice }: { query: string; maxPrice?: number }) =>
+    mutationFn: ({ query, maxPrice, characteristics }: { query: string; maxPrice?: number; characteristics?: Record<string, string | string[]> }) =>
       searchProducts({
         query,
         max_price: maxPrice,
-        context: contextFilters // Pass context filters to search
+        context: contextFilters as Record<string, string>, // Pass context filters to search
+        characteristics: characteristics // Pass characteristic answers to search
       }),
     onSuccess: (data) => {
       setResults(data)
@@ -91,16 +87,44 @@ export default function HomePageContent() {
     setSelectedCharacteristics([])
     setSelectedMaterials([])
     setSelectedTier(undefined)
-    searchMutation.mutate({ query, maxPrice })
+    searchMutation.mutate({ query, maxPrice, characteristics: characteristicAnswers })
   }
+
+  // Track if this is the initial mount
+  const [isInitialMount, setIsInitialMount] = useState(true)
+
+  // Mark that we've finished initial mount
+  useEffect(() => {
+    setIsInitialMount(false)
+  }, [])
+
+  // Auto-trigger new search when characteristic answers change (but NOT on initial mount)
+  useEffect(() => {
+    // Skip on initial mount to avoid auto-searching with remembered filters
+    if (isInitialMount) {
+      return
+    }
+
+    if (currentQuery && Object.keys(characteristicAnswers).length > 0) {
+      console.log('🔄 Characteristic changed, triggering new personalized search:', characteristicAnswers)
+      searchMutation.mutate({
+        query: currentQuery,
+        characteristics: characteristicAnswers
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [characteristicAnswers])
 
   const handleNavigate = (category: string) => {
     setCurrentCategory(category)
   }
 
   const handleCharacteristicClick = (characteristic: string) => {
+    // Simple toggle for characteristic selection (used for filtering products)
+    // No longer syncs with personalization filters - they are separate
+    const isCurrentlySelected = selectedCharacteristics.includes(characteristic)
     setSelectedCharacteristics(prev =>
-      prev.includes(characteristic) ? [] : [characteristic]
+      isCurrentlySelected ? [] : [characteristic]
     )
   }
 
@@ -167,8 +191,10 @@ export default function HomePageContent() {
       ]
     : []
 
-  // Client-side filtering
+  // Client-side filtering (backend already personalized results based on characteristics)
+  // We only apply simple UI-driven filters here: characteristics, materials, tier
   const filteredProducts = allProducts.filter(product => {
+    // Filter by selected characteristics (from aggregated_characteristics)
     if (selectedCharacteristics.length > 0) {
       const characteristics = product.characteristics || []
       const hasCharacteristic = selectedCharacteristics.some(selectedChar =>
@@ -177,6 +203,7 @@ export default function HomePageContent() {
       if (!hasCharacteristic) return false
     }
 
+    // Filter by selected materials
     if (selectedMaterials.length > 0) {
       const materials = product.materials || []
       const hasMaterial = selectedMaterials.some(selectedMat =>
@@ -185,6 +212,7 @@ export default function HomePageContent() {
       if (!hasMaterial) return false
     }
 
+    // Filter by selected tier
     if (selectedTier) {
       if (product.tier !== selectedTier.toLowerCase()) return false
     }
@@ -277,6 +305,9 @@ export default function HomePageContent() {
             totalSourcesAnalyzed={results.total_sources_analyzed}
             queriesGenerated={results.queries_generated}
             sourcesByPhase={results.sources_by_phase}
+            totalProductsResearched={allProducts.length}
+            totalProductsDisplayed={filteredProducts.length}
+            fromCache={false}
           />
         </div>
       )}
@@ -667,11 +698,9 @@ export default function HomePageContent() {
                       <div className="text-2xl font-bold text-gray-900 mb-1">
                         {product.value_metrics?.expected_lifespan_years
                           ? `${product.value_metrics.expected_lifespan_years} years`
-                          : typeof product.lifespan === 'string'
-                            ? product.lifespan
-                            : `${product.lifespan} years`}
+                          : 'N/A'}
                       </div>
-                      {product.durability_data?.total_user_reports > 0 && (
+                      {product.durability_data && product.durability_data.total_user_reports > 0 && (
                         <div className="text-[10px] text-gray-500">
                           Based on {product.durability_data.total_user_reports} user reports
                         </div>
@@ -690,7 +719,7 @@ export default function HomePageContent() {
                       <div className="space-y-3">
                         <div className="flex justify-between text-xs">
                           <span className="text-gray-500">Price:</span>
-                          <span className="font-bold text-gray-900">${product.value_metrics?.upfront_price || product.price || 'N/A'}</span>
+                          <span className="font-bold text-gray-900">${product.value_metrics?.upfront_price || 'N/A'}</span>
                         </div>
                         {product.value_metrics && (
                           <>

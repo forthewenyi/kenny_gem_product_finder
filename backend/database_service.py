@@ -7,7 +7,7 @@ import os
 import hashlib
 import json
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from supabase import create_client, Client
 from models import Product, SearchResponse
 
@@ -22,11 +22,35 @@ class DatabaseService:
             raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set in environment")
 
         self.client: Client = create_client(url, key)
-        self.cache_ttl_hours = 24  # Cache results for 24 hours
+
+        # Dynamic cache TTL based on query popularity
+        self.cache_ttl_popular_hours = 168  # 1 week for popular searches (>5 accesses)
+        self.cache_ttl_normal_hours = 24     # 24 hours for normal searches
+        self.cache_ttl_niche_hours = 72      # 3 days for niche searches (1-2 accesses)
 
     def normalize_query(self, query: str) -> str:
         """Normalize query for better cache matching"""
         return query.lower().strip()
+
+    def _get_dynamic_ttl(self, access_count: int) -> int:
+        """
+        Calculate dynamic cache TTL based on query popularity
+
+        Args:
+            access_count: Number of times this query has been accessed
+
+        Returns:
+            TTL in hours
+        """
+        if access_count >= 5:
+            # Popular search - cache for 1 week
+            return self.cache_ttl_popular_hours
+        elif access_count >= 2:
+            # Niche search - cache for 3 days
+            return self.cache_ttl_niche_hours
+        else:
+            # Normal/new search - cache for 24 hours
+            return self.cache_ttl_normal_hours
 
     def get_query_hash(self, query: str, tier_preference: Optional[str] = None,
                        max_price: Optional[float] = None) -> str:
@@ -44,19 +68,16 @@ class DatabaseService:
         """
         Check if we have a cached search result for this query.
         Returns None if no cache hit or cache is expired.
+        Uses dynamic TTL based on query popularity.
         """
         try:
             normalized_query = self.normalize_query(query)
 
-            # Calculate cache expiration time
-            cache_cutoff = datetime.now() - timedelta(hours=self.cache_ttl_hours)
-
-            # Query for matching searches
+            # First, get all matching queries to determine TTL dynamically
             query_builder = (
                 self.client.table("search_queries")
-                .select("*, product_search_results(*, products(*))")
+                .select("id, created_at, access_count, product_search_results(*, products(*))")
                 .eq("normalized_query", normalized_query)
-                .gte("created_at", cache_cutoff.isoformat())
             )
 
             if tier_preference:
@@ -72,11 +93,27 @@ class DatabaseService:
 
             # Get the most recent search
             cached_search = response.data[0]
+            access_count = cached_search.get("access_count", 0)
 
-            # Update last_accessed_at
+            # Calculate dynamic TTL based on popularity
+            ttl_hours = self._get_dynamic_ttl(access_count)
+            cache_cutoff = datetime.now(timezone.utc) - timedelta(hours=ttl_hours)
+
+            # Check if cache is still valid
+            created_at = datetime.fromisoformat(cached_search["created_at"].replace('Z', '+00:00'))
+            if created_at < cache_cutoff:
+                # Cache expired
+                print(f"🕒 Cache expired for '{query}' (TTL: {ttl_hours}h, access_count: {access_count})")
+                return None
+
+            # Cache hit! Update access tracking
+            new_access_count = access_count + 1
             self.client.table("search_queries").update({
-                "last_accessed_at": datetime.now().isoformat()
+                "last_accessed_at": datetime.now(timezone.utc).isoformat(),
+                "access_count": new_access_count
             }).eq("id", cached_search["id"]).execute()
+
+            print(f"✓ Cache hit for '{query}' (access #{new_access_count}, TTL: {ttl_hours}h)")
 
             # Transform cached data back to SearchResponse format
             return self._transform_cached_search(cached_search)
@@ -87,34 +124,126 @@ class DatabaseService:
 
     def _transform_cached_search(self, cached_search: Dict[str, Any]) -> SearchResponse:
         """Transform cached database result into SearchResponse"""
+        from models import ValueMetrics, WebSource, TierResults, DurabilityData, PracticalMetrics
+
         # Group products by tier
-        results_by_tier = {"good": [], "better": [], "best": []}
+        good_products = []
+        better_products = []
+        best_products = []
 
         for result in cached_search.get("product_search_results", []):
             tier = result["tier"]
             product_data = result["products"]
 
-            product = Product(
-                product_name=product_data["product_name"],
-                brand=product_data.get("brand"),
-                price=float(product_data["price"]),
-                expected_lifespan_years=product_data["expected_lifespan_years"],
-                tier=product_data["tier"],
+            # Reconstruct value_metrics
+            value_metrics = ValueMetrics(
+                upfront_price=float(product_data["price"]),
+                expected_lifespan_years=float(product_data["expected_lifespan_years"]),
                 cost_per_year=float(product_data.get("cost_per_year", 0)),
-                cost_per_day=float(product_data.get("cost_per_day", 0)),
-                why_gem=product_data.get("why_gem"),
-                key_features=product_data.get("key_features", []),
-                trade_offs=product_data.get("trade_offs"),
-                best_for=product_data.get("best_for"),
-                web_sources=product_data.get("web_sources", []),
-                maintenance_level=product_data.get("maintenance_level")
+                cost_per_day=float(product_data.get("cost_per_day", 0))
             )
 
-            if tier in results_by_tier:
-                results_by_tier[tier].append(product)
+            # Reconstruct durability_data if present
+            durability_data = None
+            if product_data.get("durability_data"):
+                dd = product_data["durability_data"]
+                durability_data = DurabilityData(
+                    score=dd.get("score", 0),
+                    average_lifespan_years=dd.get("average_lifespan_years", 0.0),
+                    still_working_after_5years_percent=dd.get("still_working_after_5years_percent", 0),
+                    total_user_reports=dd.get("total_user_reports", 0),
+                    common_failure_points=dd.get("common_failure_points", []),
+                    repairability_score=dd.get("repairability_score", 0),
+                    material_quality_indicators=dd.get("material_quality_indicators", []),
+                    data_sources=dd.get("data_sources", [])
+                )
+
+            # Reconstruct practical_metrics if present
+            practical_metrics = None
+            if product_data.get("practical_metrics"):
+                pm = product_data["practical_metrics"]
+                practical_metrics = PracticalMetrics(
+                    cleaning_time_minutes=pm.get("cleaning_time_minutes"),
+                    cleaning_details=pm.get("cleaning_details", ""),
+                    setup_time=pm.get("setup_time", "Ready"),
+                    setup_details=pm.get("setup_details", ""),
+                    learning_curve=pm.get("learning_curve", "Medium"),
+                    learning_details=pm.get("learning_details", ""),
+                    maintenance_level=pm.get("maintenance_level", "Medium"),
+                    maintenance_details=pm.get("maintenance_details", ""),
+                    weight_lbs=pm.get("weight_lbs"),
+                    weight_notes=pm.get("weight_notes"),
+                    dishwasher_safe=pm.get("dishwasher_safe", False),
+                    oven_safe=pm.get("oven_safe", False),
+                    oven_max_temp=pm.get("oven_max_temp")
+                )
+
+            # Reconstruct web_sources
+            web_sources = []
+            for source in product_data.get("web_sources", []):
+                if isinstance(source, dict):
+                    web_sources.append(WebSource(
+                        url=source.get("url", ""),
+                        title=source.get("title", ""),
+                        snippet=source.get("snippet", ""),
+                        relevance_score=source.get("relevance_score")
+                    ))
+
+            product = Product(
+                name=product_data["name"],
+                brand=product_data.get("brand", ""),
+                tier=product_data["tier"],
+                category=product_data.get("category", "general"),
+                value_metrics=value_metrics,
+                durability_data=durability_data,
+                practical_metrics=practical_metrics,
+                characteristics=product_data.get("characteristics", []),
+                key_features=product_data.get("key_features", []),
+                materials=product_data.get("materials", []),
+                why_its_a_gem=product_data.get("why_its_a_gem", ""),
+                web_sources=web_sources,
+                maintenance_level=product_data.get("maintenance_level", "Medium"),
+                best_for=product_data.get("best_for", ""),
+                trade_offs=product_data.get("trade_offs", [])
+            )
+
+            if tier == "good":
+                good_products.append(product)
+            elif tier == "better":
+                better_products.append(product)
+            elif tier == "best":
+                best_products.append(product)
+
+        tier_results = TierResults(
+            good=good_products,
+            better=better_products,
+            best=best_products
+        )
+
+        # Generate aggregated characteristics from all products
+        from models import AggregatedCharacteristic
+        from collections import Counter
+
+        all_products = good_products + better_products + best_products
+        characteristic_to_products = {}
+
+        for product in all_products:
+            for char in product.characteristics:
+                if char not in characteristic_to_products:
+                    characteristic_to_products[char] = []
+                characteristic_to_products[char].append(product.name)
+
+        aggregated_characteristics = [
+            AggregatedCharacteristic(
+                label=char,
+                count=len(products),
+                product_names=products
+            )
+            for char, products in sorted(characteristic_to_products.items(), key=lambda x: len(x[1]), reverse=True)
+        ]
 
         return SearchResponse(
-            results=results_by_tier,
+            results=tier_results,
             search_metadata={
                 "sources_searched": cached_search.get("sources_searched", []),
                 "search_queries_used": cached_search.get("search_queries_used", []),
@@ -122,7 +251,7 @@ class DatabaseService:
                 "cache_date": cached_search.get("created_at")
             },
             processing_time_seconds=0.0,  # Cached result, instant
-            educational_insights=cached_search.get("educational_insights", [])
+            aggregated_characteristics=aggregated_characteristics  # Add aggregated characteristics
         )
 
     async def cache_search_results(self, query: str, search_response: SearchResponse,
@@ -145,8 +274,8 @@ class DatabaseService:
                 "context": context or {},
                 "sources_searched": search_response.search_metadata.get("sources_searched", []),
                 "search_queries_used": search_response.search_metadata.get("search_queries_used", []),
-                "educational_insights": search_response.educational_insights,
-                "processing_time_seconds": search_response.processing_time_seconds
+                "processing_time_seconds": search_response.processing_time_seconds,
+                "access_count": 0  # Initialize access count for new cache entries
             }
 
             search_result = self.client.table("search_queries").insert(search_data).execute()
@@ -156,60 +285,113 @@ class DatabaseService:
 
             search_id = search_result.data[0]["id"]
 
-            # Insert products and link to search
-            for tier, products in search_response.results.items():
-                for product in products:
-                    # Check if product exists
-                    existing_product = (
-                        self.client.table("products")
-                        .select("id")
-                        .eq("product_name", product.product_name)
-                        .eq("brand", product.brand)
-                        .execute()
-                    )
+            # Get all products from all tiers
+            all_products = []
+            for tier_name in ["good", "better", "best"]:
+                tier_products = getattr(search_response.results, tier_name, [])
+                for product in tier_products:
+                    all_products.append((tier_name, product))
 
-                    if existing_product.data and len(existing_product.data) > 0:
-                        product_id = existing_product.data[0]["id"]
-                    else:
-                        # Insert new product
-                        product_data = {
-                            "product_name": product.product_name,
-                            "brand": product.brand,
-                            "price": float(product.price),
-                            "expected_lifespan_years": product.expected_lifespan_years,
-                            "tier": product.tier,
-                            "cost_per_year": float(product.cost_per_year),
-                            "cost_per_day": float(product.cost_per_day),
-                            "why_gem": product.why_gem,
-                            "key_features": product.key_features,
-                            "trade_offs": product.trade_offs,
-                            "best_for": product.best_for,
-                            "web_sources": product.web_sources,
-                            "maintenance_level": product.maintenance_level,
-                            "category": self._extract_category(query)
+            # Insert products and link to search
+            for tier, product in all_products:
+                # Check if product exists
+                existing_product = (
+                    self.client.table("products")
+                    .select("id")
+                    .eq("name", product.name)
+                    .eq("brand", product.brand)
+                    .execute()
+                )
+
+                if existing_product.data and len(existing_product.data) > 0:
+                    product_id = existing_product.data[0]["id"]
+                else:
+                    # Serialize web_sources to JSON
+                    web_sources_json = []
+                    for source in product.web_sources:
+                        web_sources_json.append({
+                            "url": source.url,
+                            "title": source.title,
+                            "snippet": source.snippet,
+                            "relevance_score": source.relevance_score
+                        })
+
+                    # Serialize durability_data if present
+                    durability_data_json = None
+                    if product.durability_data:
+                        durability_data_json = {
+                            "score": product.durability_data.score,
+                            "average_lifespan_years": product.durability_data.average_lifespan_years,
+                            "still_working_after_5years_percent": product.durability_data.still_working_after_5years_percent,
+                            "total_user_reports": product.durability_data.total_user_reports,
+                            "common_failure_points": product.durability_data.common_failure_points,
+                            "repairability_score": product.durability_data.repairability_score,
+                            "material_quality_indicators": product.durability_data.material_quality_indicators,
+                            "data_sources": product.durability_data.data_sources
                         }
 
-                        product_result = self.client.table("products").insert(product_data).execute()
+                    # Serialize practical_metrics if present
+                    practical_metrics_json = None
+                    if product.practical_metrics:
+                        practical_metrics_json = {
+                            "cleaning_time_minutes": product.practical_metrics.cleaning_time_minutes,
+                            "cleaning_details": product.practical_metrics.cleaning_details,
+                            "setup_time": product.practical_metrics.setup_time,
+                            "setup_details": product.practical_metrics.setup_details,
+                            "learning_curve": product.practical_metrics.learning_curve,
+                            "learning_details": product.practical_metrics.learning_details,
+                            "maintenance_level": product.practical_metrics.maintenance_level,
+                            "maintenance_details": product.practical_metrics.maintenance_details,
+                            "weight_lbs": product.practical_metrics.weight_lbs,
+                            "weight_notes": product.practical_metrics.weight_notes,
+                            "dishwasher_safe": product.practical_metrics.dishwasher_safe,
+                            "oven_safe": product.practical_metrics.oven_safe,
+                            "oven_max_temp": product.practical_metrics.oven_max_temp
+                        }
 
-                        if not product_result.data:
-                            continue
-
-                        product_id = product_result.data[0]["id"]
-
-                    # Link product to search
-                    link_data = {
-                        "product_id": product_id,
-                        "search_query_id": search_id,
-                        "tier": tier
+                    # Insert new product
+                    product_data = {
+                        "name": product.name,
+                        "brand": product.brand,
+                        "price": float(product.value_metrics.upfront_price),
+                        "expected_lifespan_years": float(product.value_metrics.expected_lifespan_years),
+                        "tier": product.tier.value if hasattr(product.tier, 'value') else str(product.tier),
+                        "cost_per_year": float(product.value_metrics.cost_per_year),
+                        "cost_per_day": float(product.value_metrics.cost_per_day),
+                        "why_its_a_gem": product.why_its_a_gem,
+                        "key_features": product.key_features,
+                        "materials": product.materials,
+                        "characteristics": product.characteristics,
+                        "trade_offs": product.trade_offs or [],
+                        "best_for": product.best_for,
+                        "web_sources": web_sources_json,
+                        "maintenance_level": product.maintenance_level,
+                        "category": product.category,
+                        "durability_data": durability_data_json,
+                        "practical_metrics": practical_metrics_json
                     }
 
-                    # Insert link (ignore duplicates)
-                    try:
-                        self.client.table("product_search_results").insert(link_data).execute()
-                    except Exception as e:
-                        # Ignore duplicate key errors
-                        if "duplicate" not in str(e).lower():
-                            print(f"Error linking product to search: {e}")
+                    product_result = self.client.table("products").insert(product_data).execute()
+
+                    if not product_result.data:
+                        continue
+
+                    product_id = product_result.data[0]["id"]
+
+                # Link product to search
+                link_data = {
+                    "product_id": product_id,
+                    "search_query_id": search_id,
+                    "tier": tier
+                }
+
+                # Insert link (ignore duplicates)
+                try:
+                    self.client.table("product_search_results").insert(link_data).execute()
+                except Exception as e:
+                    # Ignore duplicate key errors
+                    if "duplicate" not in str(e).lower():
+                        print(f"Error linking product to search: {e}")
 
             return True
 
@@ -240,6 +422,8 @@ class DatabaseService:
                                          tier: Optional[str] = None) -> List[Product]:
         """Get cached products within a price range"""
         try:
+            from models import ValueMetrics, WebSource
+
             query_builder = (
                 self.client.table("products")
                 .select("*")
@@ -254,20 +438,39 @@ class DatabaseService:
 
             products = []
             for product_data in response.data:
-                product = Product(
-                    product_name=product_data["product_name"],
-                    brand=product_data.get("brand"),
-                    price=float(product_data["price"]),
-                    expected_lifespan_years=product_data["expected_lifespan_years"],
-                    tier=product_data["tier"],
+                # Reconstruct value_metrics
+                value_metrics = ValueMetrics(
+                    upfront_price=float(product_data["price"]),
+                    expected_lifespan_years=float(product_data["expected_lifespan_years"]),
                     cost_per_year=float(product_data.get("cost_per_year", 0)),
-                    cost_per_day=float(product_data.get("cost_per_day", 0)),
-                    why_gem=product_data.get("why_gem"),
+                    cost_per_day=float(product_data.get("cost_per_day", 0))
+                )
+
+                # Reconstruct web_sources
+                web_sources = []
+                for source in product_data.get("web_sources", []):
+                    if isinstance(source, dict):
+                        web_sources.append(WebSource(
+                            url=source.get("url", ""),
+                            title=source.get("title", ""),
+                            snippet=source.get("snippet", ""),
+                            relevance_score=source.get("relevance_score")
+                        ))
+
+                product = Product(
+                    name=product_data["name"],
+                    brand=product_data.get("brand", ""),
+                    tier=product_data["tier"],
+                    category=product_data.get("category", "general"),
+                    value_metrics=value_metrics,
+                    characteristics=product_data.get("characteristics", []),
                     key_features=product_data.get("key_features", []),
-                    trade_offs=product_data.get("trade_offs"),
-                    best_for=product_data.get("best_for"),
-                    web_sources=product_data.get("web_sources", []),
-                    maintenance_level=product_data.get("maintenance_level")
+                    materials=product_data.get("materials", []),
+                    why_its_a_gem=product_data.get("why_its_a_gem", ""),
+                    web_sources=web_sources,
+                    maintenance_level=product_data.get("maintenance_level", "Medium"),
+                    best_for=product_data.get("best_for", ""),
+                    trade_offs=product_data.get("trade_offs", [])
                 )
                 products.append(product)
 

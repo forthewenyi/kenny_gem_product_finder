@@ -141,6 +141,7 @@ export interface SearchQuery {
   tier_preference?: TierLevel
   max_price?: number
   context?: Record<string, string>
+  characteristics?: Record<string, string | string[]>
 }
 
 export interface Category {

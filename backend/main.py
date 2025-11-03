@@ -19,7 +19,7 @@ from models import (
     TierLevel,
     WebSource
 )
-from contextual_search import get_contextual_search  # AI-driven query generation with Gemini
+from adk_search import get_adk_search  # ADK-powered multi-agent search with Google Agent Development Kit
 from database_service import DatabaseService
 from durability_scorer import get_durability_scorer, DurabilityScore as DurabilityScoreCalc
 from characteristic_generator import get_characteristic_generator
@@ -36,12 +36,10 @@ app = FastAPI(
 )
 
 # Initialize database service
-# TEMPORARILY DISABLED: Database schema incompatible with current Product model
-# Need to update database_service.py to use new schema with nested value_metrics
+# Database schema updated to match current Product model
 try:
-    # db_service = DatabaseService()
-    db_service = None  # Temporarily disabled
-    print("⚠️  Database caching temporarily disabled (schema mismatch)")
+    db_service = DatabaseService()
+    print("✅ Database caching enabled")
 except Exception as e:
     print(f"⚠️  Database caching disabled: {e}")
     db_service = None
@@ -175,8 +173,8 @@ async def get_popular_searches(category: str, limit: int = 8):
     """
     try:
         # Validate category
-        if category not in ['cookware', 'knives', 'bakeware']:
-            raise HTTPException(status_code=400, detail="Invalid category. Must be one of: cookware, knives, bakeware")
+        if category not in ['cookware', 'knives', 'bakeware', 'small_appliances', 'kitchen_tools']:
+            raise HTTPException(status_code=400, detail="Invalid category. Must be one of: cookware, knives, bakeware, small_appliances, kitchen_tools")
 
         search_service = get_popular_search_service()
         results = await search_service.get_popular_searches(category, limit)
@@ -205,8 +203,8 @@ async def track_search(query: str, category: str):
     """
     try:
         # Validate category
-        if category not in ['cookware', 'knives', 'bakeware']:
-            raise HTTPException(status_code=400, detail="Invalid category. Must be one of: cookware, knives, bakeware")
+        if category not in ['cookware', 'knives', 'bakeware', 'small_appliances', 'kitchen_tools']:
+            raise HTTPException(status_code=400, detail="Invalid category. Must be one of: cookware, knives, bakeware, small_appliances, kitchen_tools")
 
         search_service = get_popular_search_service()
         success = await search_service.track_search(query, category)
@@ -232,7 +230,7 @@ async def search_products(query: SearchQuery):
 
     try:
         # Step 1: Check database cache first
-        if db_service:
+        if False:  # Caching temporarily disabled for ADK testing
             print(f"🔍 Checking cache for query: '{query.query}'")
             cached_result = await db_service.get_cached_search(
                 query=query.query,
@@ -291,13 +289,19 @@ async def search_products(query: SearchQuery):
         print("🔍 Cache disabled - performing fresh search...")
 
         # Step 2: No cache hit - perform fresh search
-        # Get the search instance using Gemini-powered contextual search
-        search = get_contextual_search()
+        # Use ADK-powered multi-agent search
 
-        # Search for products using AI
-        agent_result = await search.search_products(
-            query.query,
-            query.context or {}
+        # Log personalized search if characteristics provided
+        if query.characteristics:
+            print(f"🎯 Personalized search with characteristics: {query.characteristics}")
+
+        # Search for products using ADK agents
+        agent_result = await get_adk_search(
+            query=query.query,
+            max_price=query.max_price,
+            location="United States",
+            user_context=query.context or {},
+            characteristics=query.characteristics or {}
         )
 
         # Parse agent output into Product objects
