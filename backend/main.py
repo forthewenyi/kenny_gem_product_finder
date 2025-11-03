@@ -4,7 +4,10 @@ AI-powered kitchen product search with Good/Better/Best tier system
 """
 import os
 import time
-from fastapi import FastAPI, HTTPException
+import asyncio
+import uuid
+from typing import Dict
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -44,6 +47,10 @@ except Exception as e:
     print(f"⚠️  Database caching disabled: {e}")
     db_service = None
 
+# Progress tracking for WebSocket real-time updates
+# Maps search_id -> callback function to emit progress events
+progress_callbacks: Dict[str, callable] = {}
+
 # CORS middleware - configure for production later
 app.add_middleware(
     CORSMiddleware,
@@ -62,6 +69,85 @@ async def root():
         version="0.1.0",
         environment=os.getenv("ENVIRONMENT", "development")
     )
+
+
+@app.websocket("/ws/search-progress")
+async def websocket_search_progress(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time search progress updates.
+
+    The client sends a search query, receives a search_id, then gets progress updates
+    as the ADK agents research and find products.
+    """
+    await websocket.accept()
+    search_id = str(uuid.uuid4())
+
+    print(f"🔌 WebSocket connected: search_id={search_id}")
+
+    try:
+        # Wait for the search query from client
+        data = await websocket.receive_json()
+        query = data.get("query")
+        max_price = data.get("max_price")
+        context = data.get("context")
+        characteristics = data.get("characteristics")
+
+        # Send search_id to client
+        await websocket.send_json({
+            "type": "search_started",
+            "search_id": search_id,
+            "query": query
+        })
+
+        # Define progress callback that sends updates to WebSocket
+        async def send_progress(event_type: str, message: str, data: dict = None):
+            try:
+                await websocket.send_json({
+                    "type": event_type,
+                    "message": message,
+                    "data": data or {},
+                    "timestamp": time.time()
+                })
+            except Exception as e:
+                print(f"⚠️  Error sending WebSocket message: {e}")
+
+        # Register callback
+        progress_callbacks[search_id] = send_progress
+
+        # Start the search with progress tracking
+        await send_progress("agent_start", "Starting research...", {"agent": "context_discovery"})
+
+        # Run the ADK search with progress callback
+        agent_result = await get_adk_search(
+            query=query,
+            max_price=max_price,
+            user_context=context,
+            characteristics=characteristics,
+            progress_callback=send_progress
+        )
+
+        # Send completion
+        await send_progress("search_complete", "Research complete!", {
+            "products_found": len(agent_result.get("good_tier", [])) +
+                             len(agent_result.get("better_tier", [])) +
+                             len(agent_result.get("best_tier", []))
+        })
+
+    except WebSocketDisconnect:
+        print(f"🔌 WebSocket disconnected: search_id={search_id}")
+    except Exception as e:
+        print(f"❌ WebSocket error: {e}")
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": str(e)
+            })
+        except:
+            pass
+    finally:
+        # Cleanup
+        if search_id in progress_callbacks:
+            del progress_callbacks[search_id]
 
 
 @app.get("/health", response_model=HealthCheckResponse)
@@ -367,6 +453,11 @@ async def search_products(query: SearchQuery):
 
         # Parse real search metrics if provided
         real_search_metrics = None
+        search_queries_list = None
+        total_sources = None
+        queries_generated_count = None
+        sources_by_phase_data = None
+
         if "real_search_metrics" in agent_result:
             metrics_data = agent_result["real_search_metrics"]
             real_search_metrics = RealSearchMetrics(
@@ -376,6 +467,32 @@ async def search_products(query: SearchQuery):
                 search_queries_executed=metrics_data.get("search_queries_executed", 0),
                 search_queries=metrics_data.get("search_queries", []),
                 unique_sources=metrics_data.get("unique_sources", 0)
+            )
+
+            # Build search transparency fields for frontend
+            from models import PhaseQueryInfo, SourcesByPhase
+
+            # Format search queries with phase info
+            search_queries_list = []
+            sources_by_phase_dict = metrics_data.get("sources_by_phase", {})
+
+            for phase_name, phase_data in sources_by_phase_dict.items():
+                if isinstance(phase_data, dict) and "queries" in phase_data:
+                    for query_text in phase_data["queries"]:
+                        search_queries_list.append(PhaseQueryInfo(
+                            phase=phase_name,
+                            query=query_text
+                        ))
+
+            # Extract metrics
+            total_sources = metrics_data.get("total_sources_analyzed", 0)
+            queries_generated_count = metrics_data.get("queries_generated", 0)
+
+            # Build sources by phase
+            sources_by_phase_data = SourcesByPhase(
+                context_discovery=sources_by_phase_dict.get("context_discovery", {}).get("count", 0) if isinstance(sources_by_phase_dict.get("context_discovery"), dict) else 0,
+                product_finder=sources_by_phase_dict.get("product_finder", {}).get("count", 0) if isinstance(sources_by_phase_dict.get("product_finder"), dict) else 0,
+                synthesis=sources_by_phase_dict.get("synthesis", {}).get("count", 0) if isinstance(sources_by_phase_dict.get("synthesis"), dict) else 0
             )
 
         # Build response
@@ -390,7 +507,12 @@ async def search_products(query: SearchQuery):
             processing_time_seconds=round(processing_time, 2),
             educational_insights=agent_result.get("educational_insights", []),
             aggregated_characteristics=aggregated_characteristics,
-            real_search_metrics=real_search_metrics
+            real_search_metrics=real_search_metrics,
+            # Search transparency fields
+            search_queries=search_queries_list,
+            total_sources_analyzed=total_sources,
+            queries_generated=queries_generated_count,
+            sources_by_phase=sources_by_phase_data
         )
 
         # Step 3: Cache the results for future queries

@@ -179,6 +179,19 @@ class RealSearchMetrics(BaseModel):
     unique_sources: int = Field(..., description="Number of unique sources after deduplication")
 
 
+class PhaseQueryInfo(BaseModel):
+    """Query information for a specific phase"""
+    phase: str
+    query: str
+
+
+class SourcesByPhase(BaseModel):
+    """Sources analyzed by each research phase"""
+    context_discovery: Optional[int] = 0
+    product_finder: Optional[int] = 0
+    synthesis: Optional[int] = 0
+
+
 class SearchResponse(BaseModel):
     """Search API response"""
     before_you_buy: Optional[BeforeYouBuy] = Field(None, description="Alternative solutions before showing products")
@@ -188,6 +201,11 @@ class SearchResponse(BaseModel):
     educational_insights: Optional[List[str]] = Field(default_factory=list, description="Tips and common mistakes")
     aggregated_characteristics: List[AggregatedCharacteristic] = Field(default_factory=list, description="Aggregated characteristics from all products for filtering")
     real_search_metrics: Optional[RealSearchMetrics] = Field(None, description="Real search metrics showing actual research done")
+    # Search transparency fields for frontend display
+    search_queries: Optional[List[PhaseQueryInfo]] = Field(None, description="All search queries with phase info")
+    total_sources_analyzed: Optional[int] = Field(None, description="Total web sources analyzed")
+    queries_generated: Optional[int] = Field(None, description="Number of queries generated")
+    sources_by_phase: Optional[SourcesByPhase] = Field(None, description="Sources analyzed per phase")
 
 
 class HealthCheckResponse(BaseModel):

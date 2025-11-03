@@ -24,6 +24,9 @@ load_dotenv()
 _search_service = get_google_search_service()
 
 
+# Global variable to track search result counts (thread-safe for async)
+_search_result_counts = []
+
 async def google_search(query: str, num_results: int = 6) -> str:
     """
     Search Google for information using Custom Search API or fallback.
@@ -39,6 +42,8 @@ async def google_search(query: str, num_results: int = 6) -> str:
     Returns:
         JSON string with search results including titles, links, and snippets
     """
+    global _search_result_counts
+
     import time
     start_time = time.time()
 
@@ -50,18 +55,20 @@ async def google_search(query: str, num_results: int = 6) -> str:
         results = await _search_service.async_search(query, num_results=min(num_results, 10))
 
         elapsed = time.time() - start_time
-        print(f"✅ [{time.strftime('%H:%M:%S')}] Search DONE ({elapsed:.2f}s): {query_short}")
+        result_count = len(results)
+        _search_result_counts.append(result_count)  # Track globally
+        print(f"✅ [{time.strftime('%H:%M:%S')}] Search DONE ({elapsed:.2f}s, {result_count} results): {query_short}")
 
         # Format results as JSON string for the LLM
         return json.dumps({
             "query": query,
-            "num_results": len(results),
+            "num_results": result_count,
             "results": results
         }, indent=2)
     except Exception as e:
         elapsed = time.time() - start_time
         print(f"❌ [{time.strftime('%H:%M:%S')}] Search FAILED ({elapsed:.2f}s): {query_short}")
-        return json.dumps({"error": f"Search failed: {str(e)}", "query": query})
+        return json.dumps({"error": f"Search failed: {str(e)}", "query": query, "num_results": 0})
 
 
 # Wrap the search function as an ADK FunctionTool
@@ -102,6 +109,15 @@ class ADKProductSearch:
             agent=self.pipeline,
             session_service=self.session_service
         )
+
+        # Metrics tracking for search transparency
+        self.search_queries_executed = []
+        self.total_sources_analyzed = 0
+        self.searches_by_phase = {
+            "context_discovery": [],
+            "product_finder": [],
+            "synthesis": []
+        }
 
     def _create_context_agent(self) -> Agent:
         """Agent that researches product context and usage patterns"""
@@ -185,7 +201,7 @@ For each product found, extract ALL of these fields:
 - purchase_links: Array of {name, url} where to buy (e.g. Amazon, manufacturer site)
 - professional_reviews: Array of review site names (e.g. ["Wirecutter", "Serious Eats"])
 
-Return ONLY a JSON with 6-10 products total:
+Return ONLY a JSON with 15-25 products total (find as many solid options as you can):
 {
   "products": [
     {
@@ -226,9 +242,11 @@ Your task: Analyze products and organize them into Good/Better/Best tiers.
 IMPORTANT: Preserve ALL fields from product_findings for each product. Do not drop any fields.
 
 Tier Guidelines:
-- GOOD TIER: Budget-friendly ($0-50), solid basics, good value (2-3 products)
-- BETTER TIER: Mid-range ($50-150), better features/durability (2-3 products)
-- BEST TIER: Premium ($150+), exceptional quality/longevity (2-3 products)
+- GOOD TIER: Budget-friendly ($0-50), solid basics, good value (4-7 products)
+- BETTER TIER: Mid-range ($50-150), better features/durability (4-7 products)
+- BEST TIER: Premium ($150+), exceptional quality/longevity (4-7 products)
+
+IMPORTANT: Include ALL worthy products from product_findings. Don't artificially limit to fewer products if you found more good options.
 
 CRITICAL: Output ONLY this JSON structure (no markdown, no explanations):
 
@@ -250,8 +268,8 @@ CRITICAL: Output ONLY this JSON structure (no markdown, no explanations):
       "professional_reviews": ["Wirecutter"]
     }
   ],
-  "better_tier": [2-3 products with ALL fields],
-  "best_tier": [2-3 products with ALL fields],
+  "better_tier": [4-7 products with ALL fields],
+  "best_tier": [4-7 products with ALL fields],
   "key_insights": ["Based on context research, users should prioritize..."],
   "what_to_avoid": ["Common issue to avoid..."]
 }
@@ -279,7 +297,8 @@ Output ONLY the JSON - no markdown blocks, no explanations.
         query: str,
         max_price: Optional[float] = None,
         user_context: Optional[Dict[str, Any]] = None,
-        characteristics: Optional[Dict[str, Any]] = None
+        characteristics: Optional[Dict[str, Any]] = None,
+        progress_callback: Optional[callable] = None
     ) -> Dict[str, Any]:
         """
         Execute ADK-based product search
@@ -289,10 +308,14 @@ Output ONLY the JSON - no markdown blocks, no explanations.
             max_price: Maximum price filter
             user_context: User context information
             characteristics: User characteristic preferences
+            progress_callback: Optional async function to call with progress updates
 
         Returns:
             Structured search results with Good/Better/Best recommendations
         """
+        # Declare global variable at the top of the function
+        global _search_result_counts
+
         # Build context string
         context_parts = [f"Find the best {query}"]
 
@@ -315,6 +338,16 @@ Output ONLY the JSON - no markdown blocks, no explanations.
 
         print(f"\n🤖 Starting ADK agent-based search for: {query}")
         print(f"📋 Request: {search_request}\n")
+
+        # Reset metrics for this search
+        _search_result_counts = []  # Reset global counter
+        self.search_queries_executed = []
+        self.total_sources_analyzed = 0
+        self.searches_by_phase = {
+            "context_discovery": [],
+            "product_finder": [],
+            "synthesis": []
+        }
 
         # Execute the agent workflow
         import time
@@ -341,6 +374,8 @@ Output ONLY the JSON - no markdown blocks, no explanations.
 
             final_response_text = ""
             event_count = 0
+            current_agent = None
+            last_agent_notified = None  # Track last agent we sent progress for
 
             async for event in self.runner.run_async(
                 user_id=user_id,
@@ -349,11 +384,62 @@ Output ONLY the JSON - no markdown blocks, no explanations.
             ):
                 event_count += 1
 
-                # Log function calls for profiling
+                # Track which agent is currently running and emit progress
+                if event.author in ["context_discovery_agent", "product_finder_agent", "synthesis_agent"]:
+                    if current_agent != event.author:
+                        current_agent = event.author
+
+                        # Emit progress update when agent changes
+                        if progress_callback and last_agent_notified != current_agent:
+                            last_agent_notified = current_agent
+                            agent_messages = {
+                                "context_discovery_agent": "Researching usage patterns and durability...",
+                                "product_finder_agent": "Finding specific products...",
+                                "synthesis_agent": "Analyzing and organizing products..."
+                            }
+                            await progress_callback(
+                                "agent_progress",
+                                agent_messages.get(current_agent, "Processing..."),
+                                {"agent": current_agent.replace("_agent", ""), "phase": current_agent}
+                            )
+
+                # Track function calls for search transparency
                 if event.content and event.content.parts:
                     for part in event.content.parts:
-                        if hasattr(part, 'function_call'):
-                            print(f"📞 [{time.strftime('%H:%M:%S')}] Function call by {event.author}")
+                        # Track google_search function calls
+                        if hasattr(part, 'function_call') and part.function_call:
+                            func_call = part.function_call
+                            if func_call.name == "google_search":
+                                # Extract query from function call args
+                                query_text = None
+                                if hasattr(func_call, 'args') and func_call.args:
+                                    if isinstance(func_call.args, dict):
+                                        query_text = func_call.args.get('query', 'Unknown query')
+                                    elif hasattr(func_call.args, 'get'):
+                                        query_text = func_call.args.get('query', 'Unknown query')
+
+                                if query_text:
+                                    self.search_queries_executed.append(query_text)
+
+                                    # Track by phase
+                                    if current_agent == "context_discovery_agent":
+                                        self.searches_by_phase["context_discovery"].append(query_text)
+                                    elif current_agent == "product_finder_agent":
+                                        self.searches_by_phase["product_finder"].append(query_text)
+
+                                    print(f"📞 [{time.strftime('%H:%M:%S')}] google_search by {event.author}: {query_text[:60]}...")
+
+                                    # Emit progress for search query
+                                    if progress_callback:
+                                        await progress_callback(
+                                            "search_query",
+                                            f"Searching: {query_text[:80]}...",
+                                            {
+                                                "query": query_text,
+                                                "agent": current_agent.replace("_agent", "") if current_agent else "unknown",
+                                                "total_searches": len(self.search_queries_executed)
+                                            }
+                                        )
 
                 # Capture final response from synthesis_agent (last agent in pipeline)
                 # SequentialAgent passes through final responses from its last sub-agent
@@ -363,8 +449,16 @@ Output ONLY the JSON - no markdown blocks, no explanations.
                             if hasattr(part, 'text') and part.text:
                                 final_response_text = part.text
 
+            # Get total sources from global counter
             workflow_elapsed = time.time() - workflow_start
+            self.total_sources_analyzed = sum(_search_result_counts)
+
             print(f"\n⏱️  Total workflow time: {workflow_elapsed:.2f}s ({event_count} events)")
+            print(f"🔍 Search Metrics:")
+            print(f"   - Total searches executed: {len(self.search_queries_executed)}")
+            print(f"   - Total sources analyzed: {self.total_sources_analyzed}")
+            print(f"   - Context discovery searches: {len(self.searches_by_phase['context_discovery'])}")
+            print(f"   - Product finder searches: {len(self.searches_by_phase['product_finder'])}")
 
             result_text = final_response_text
 
@@ -391,6 +485,29 @@ Output ONLY the JSON - no markdown blocks, no explanations.
 
             # Add aggregated characteristics
             result["aggregated_characteristics"] = self._aggregate_characteristics(result)
+
+            # Add search transparency metrics
+            result["real_search_metrics"] = {
+                "total_sources_analyzed": self.total_sources_analyzed,
+                "search_queries_executed": len(self.search_queries_executed),
+                "search_queries": self.search_queries_executed,
+                "unique_sources": self.total_sources_analyzed,  # Already unique from search API
+                "queries_generated": len(self.search_queries_executed),
+                "sources_by_phase": {
+                    "context_discovery": {
+                        "queries": self.searches_by_phase["context_discovery"],
+                        "count": len(self.searches_by_phase["context_discovery"])
+                    },
+                    "product_finder": {
+                        "queries": self.searches_by_phase["product_finder"],
+                        "count": len(self.searches_by_phase["product_finder"])
+                    },
+                    "synthesis": {
+                        "queries": self.searches_by_phase["synthesis"],
+                        "count": len(self.searches_by_phase["synthesis"])
+                    }
+                }
+            }
 
             return result
 
@@ -455,7 +572,8 @@ async def get_adk_search(
     max_price: Optional[float] = None,
     location: str = "United States",  # Kept for API compatibility, unused in ADK
     user_context: Optional[Dict[str, Any]] = None,
-    characteristics: Optional[Dict[str, Any]] = None
+    characteristics: Optional[Dict[str, Any]] = None,
+    progress_callback: Optional[callable] = None
 ) -> Dict[str, Any]:
     """
     Factory function to create and execute ADK search
@@ -466,6 +584,7 @@ async def get_adk_search(
         location: User location (kept for API compatibility)
         user_context: User context information
         characteristics: User characteristic preferences
+        progress_callback: Optional async function to call with progress updates
 
     Returns:
         Structured search results
@@ -476,5 +595,6 @@ async def get_adk_search(
         query=query,
         max_price=max_price,
         user_context=user_context,
-        characteristics=characteristics
+        characteristics=characteristics,
+        progress_callback=progress_callback
     )
