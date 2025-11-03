@@ -1,12 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { searchProducts } from '@/lib/api'
 import type { SearchResponse, Product } from '@/types'
-import { useContextFilters } from '@/hooks/useContextFilters'
-import { useCharacteristicAnswers } from '@/hooks/useCharacteristicAnswers'
-import { getCharacteristicsForQuery } from '@/config/productCharacteristics'
 
 import TopBanner from '@/components/TopBanner'
 import Header from '@/components/Header'
@@ -17,22 +14,8 @@ import SearchInterface from '@/components/SearchInterface'
 import ProductCard from '@/components/ProductCard'
 import SearchCounter from '@/components/SearchCounter'
 import SearchMetrics from '@/components/SearchMetrics'
-import ContextFilterDrawer from '@/components/ContextFilterDrawer'
-import type { FilterCategory } from '@/components/ContextFiltersBar'
 
 export default function HomePageContent() {
-  const { filters: contextFilters, updateFilters, clearFilters: clearContextFilters } = useContextFilters()
-  const {
-    answers: characteristicAnswers,
-    setAnswer: setCharacteristicAnswer,
-    clearAnswer: clearCharacteristicAnswer,
-    clearAllAnswers: clearAllCharacteristicAnswers,
-    saveAnswersToMemory,
-    loadRememberedAnswers,
-    applyRememberedAnswers,
-    clearAllMemory
-  } = useCharacteristicAnswers()
-
   const [results, setResults] = useState<SearchResponse | null>(null)
   const [compareProducts, setCompareProducts] = useState<Product[]>([])
   const [currentQuery, setCurrentQuery] = useState<string>('')
@@ -40,40 +23,16 @@ export default function HomePageContent() {
   const [selectedCharacteristics, setSelectedCharacteristics] = useState<string[]>([])
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([])
   const [selectedTier, setSelectedTier] = useState<string | undefined>(undefined)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [drawerSection, setDrawerSection] = useState<FilterCategory>('value_preference')
 
-  // Dynamic product configuration based on search query
-  const [productConfig, setProductConfig] = useState<ReturnType<typeof getCharacteristicsForQuery>>(null)
-
-  // Detect product configuration from search query
-  useEffect(() => {
-    if (currentQuery) {
-      const config = getCharacteristicsForQuery(currentQuery)
-      setProductConfig(config)
-
-      // Don't auto-apply remembered answers - let user select manually
-      // This prevents filters from auto-filling on page refresh
-    }
-  }, [currentQuery])
-
-  // Save answers to memory when they change
-  useEffect(() => {
-    if (productConfig && Object.keys(characteristicAnswers).length > 0) {
-      const rememberableIds = productConfig.characteristics
-        .filter(c => c.rememberAcrossSearches)
-        .map(c => c.id)
-      saveAnswersToMemory(rememberableIds)
-    }
-  }, [characteristicAnswers, productConfig, saveAnswersToMemory])
+  // Simple state for Value Preference - only passed to backend when Search is clicked
+  const [valuePreference, setValuePreference] = useState<'save_now' | 'best_value' | 'buy_for_life' | undefined>(undefined)
 
   const searchMutation = useMutation({
-    mutationFn: ({ query, maxPrice, characteristics }: { query: string; maxPrice?: number; characteristics?: Record<string, string | string[]> }) =>
+    mutationFn: ({ query, maxPrice, context }: { query: string; maxPrice?: number; context?: Record<string, string> }) =>
       searchProducts({
         query,
         max_price: maxPrice,
-        context: contextFilters as Record<string, string>, // Pass context filters to search
-        characteristics: characteristics // Pass characteristic answers to search
+        context: context, // Pass context filters (value_preference) to search
       }),
     onSuccess: (data) => {
       setResults(data)
@@ -87,33 +46,11 @@ export default function HomePageContent() {
     setSelectedCharacteristics([])
     setSelectedMaterials([])
     setSelectedTier(undefined)
-    searchMutation.mutate({ query, maxPrice, characteristics: characteristicAnswers })
+
+    // Build context with current value preference
+    const context = valuePreference ? { value_preference: valuePreference } : undefined
+    searchMutation.mutate({ query, maxPrice, context })
   }
-
-  // Track if this is the initial mount
-  const [isInitialMount, setIsInitialMount] = useState(true)
-
-  // Mark that we've finished initial mount
-  useEffect(() => {
-    setIsInitialMount(false)
-  }, [])
-
-  // Auto-trigger new search when characteristic answers change (but NOT on initial mount)
-  useEffect(() => {
-    // Skip on initial mount to avoid auto-searching with remembered filters
-    if (isInitialMount) {
-      return
-    }
-
-    if (currentQuery && Object.keys(characteristicAnswers).length > 0) {
-      console.log('🔄 Characteristic changed, triggering new personalized search:', characteristicAnswers)
-      searchMutation.mutate({
-        query: currentQuery,
-        characteristics: characteristicAnswers
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [characteristicAnswers])
 
   const handleNavigate = (category: string) => {
     setCurrentCategory(category)
@@ -146,21 +83,12 @@ export default function HomePageContent() {
     )
   }
 
-  const handleTierClick = (tier: string) => {
-    setSelectedTier(prev => prev === tier ? undefined : tier)
-  }
-
-  const handleFilterButtonClick = (category: FilterCategory) => {
-    setDrawerSection(category)
-    setDrawerOpen(true)
-  }
-
-  const handleAllFiltersClick = () => {
-    setDrawerOpen(true)
-  }
-
   const handleValuePreferenceChange = (value: 'save_now' | 'best_value' | 'buy_for_life') => {
-    updateFilters({ value_preference: value })
+    setValuePreference(value)
+  }
+
+  const clearValuePreference = () => {
+    setValuePreference(undefined)
   }
 
   const toggleCompare = (product: Product) => {
@@ -243,20 +171,14 @@ export default function HomePageContent() {
       {/* Page Title */}
       <PageTitle query={currentQuery} category={currentCategory} />
 
-      {/* Context Filter Drawer */}
-      <ContextFilterDrawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        filters={contextFilters}
-        onApplyFilters={updateFilters}
-        initialSection={drawerSection}
-      />
-
-      {/* Search Bar */}
+      {/* Search Bar with Input Filters */}
       <div className="max-w-[1400px] mx-auto px-10 pb-5">
         <SearchInterface
           onSearch={handleSearch}
           isLoading={searchMutation.isPending}
+          valuePreference={valuePreference}
+          onValuePreferenceChange={handleValuePreferenceChange}
+          onClearValuePreference={clearValuePreference}
         />
       </div>
 
@@ -269,33 +191,6 @@ export default function HomePageContent() {
           onCharacteristicClick={handleCharacteristicClick}
         />
       )}
-
-      {/* Dynamic Characteristics Questions - MOVED TO FILTER BAR */}
-      {/* Characteristics are now shown as dropdown buttons in the FilterBar */}
-
-      {/* Filter Bar - Includes both context and product-specific filters */}
-      {!searchMutation.isPending && (
-        <FilterBar
-          selectedCharacteristics={selectedCharacteristics}
-          onRemoveCharacteristic={handleRemoveCharacteristic}
-          selectedMaterials={selectedMaterials}
-          onRemoveMaterial={handleRemoveMaterial}
-          selectedTier={selectedTier}
-          onRemoveTier={handleRemoveTier}
-          contextFilters={contextFilters}
-          onContextFilterClick={handleFilterButtonClick}
-          onClearContextFilters={clearContextFilters}
-          onAllFiltersClick={handleAllFiltersClick}
-          onValuePreferenceChange={handleValuePreferenceChange}
-          productConfig={productConfig}
-          characteristicAnswers={characteristicAnswers}
-          onCharacteristicAnswer={setCharacteristicAnswer}
-          onClearCharacteristicAnswer={clearCharacteristicAnswer}
-        />
-      )}
-
-      {/* Filter Options - REMOVED: All filters now in Filter Bar */}
-      {/* Material and Value Tier filters are handled through the Filter Bar dropdowns */}
 
       {/* Search Metrics */}
       {!searchMutation.isPending && results && (
@@ -367,6 +262,16 @@ export default function HomePageContent() {
                 </div>
               </div>
             )}
+
+            {/* Result Filter Bar - Only shows when filters are active */}
+            <FilterBar
+              selectedCharacteristics={selectedCharacteristics}
+              onRemoveCharacteristic={handleRemoveCharacteristic}
+              selectedMaterials={selectedMaterials}
+              onRemoveMaterial={handleRemoveMaterial}
+              selectedTier={selectedTier}
+              onRemoveTier={handleRemoveTier}
+            />
 
             {/* Product Grid */}
             {filteredProducts.length > 0 && (

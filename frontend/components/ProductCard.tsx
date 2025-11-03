@@ -53,7 +53,7 @@ export default function ProductCard({
 
   return (
     <div
-      className={`bg-white flex flex-col cursor-pointer relative transition-all animate-fadeInUp focus-within:ring-2 focus-within:ring-blue-500 ${
+      className={`bg-white flex flex-col cursor-pointer relative transition-all animate-fadeInUp ${
         isSelected ? 'outline outline-3 outline-black outline-offset-[-3px]' : ''
       }`}
       style={{ animationDelay: `${animationDelay * 50}ms` }}

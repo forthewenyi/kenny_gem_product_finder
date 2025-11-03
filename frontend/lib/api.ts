@@ -8,7 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 120000, // 2 minutes for AI search
+  timeout: 180000, // 3 minutes for comprehensive AI search
 })
 
 export const searchProducts = async (searchQuery: SearchQuery): Promise<SearchResponse> => {

@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import type { ContextFilters } from './ContextFiltersBar'
 
 interface ValuePreferenceDropdownProps {
-  value: ContextFilters['value_preference']
+  value?: 'save_now' | 'best_value' | 'buy_for_life'
   onChange: (value: 'save_now' | 'best_value' | 'buy_for_life') => void
   onClear: () => void
 }
@@ -71,6 +70,7 @@ export default function ValuePreferenceDropdown({
     <div className="relative" ref={dropdownRef}>
       {/* Dropdown Button */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-wider font-semibold transition-colors ${
           hasValue
@@ -99,6 +99,7 @@ export default function ValuePreferenceDropdown({
 
               return (
                 <button
+                  type="button"
                   key={option.value}
                   onClick={() => handleOptionClick(option.value)}
                   className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 ${
@@ -138,6 +139,7 @@ export default function ValuePreferenceDropdown({
           {hasValue && (
             <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
               <button
+                type="button"
                 onClick={() => {
                   onClear()
                   setIsOpen(false)
