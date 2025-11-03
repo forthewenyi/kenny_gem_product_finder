@@ -1,11 +1,11 @@
 """
 Characteristic Generator
 Generates 5 buying characteristics for a product search query based on location and context
-Now powered by Google Gemini instead of OpenAI.
+Now powered by Google Gemini 2.5 Flash.
 """
 import json
 from typing import List, Dict
-import google.generativeai as genai
+from google import genai
 import os
 
 class CharacteristicGenerator:
@@ -14,10 +14,10 @@ class CharacteristicGenerator:
         if not api_key:
             raise ValueError("GOOGLE_API_KEY environment variable not set")
 
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
+        self.client = genai.Client(api_key=api_key)
+        self.model_name = 'gemini-2.5-flash'
 
-    def generate_characteristics(
+    async def generate_characteristics(
         self,
         query: str,
         location: str = "US",
@@ -50,7 +50,10 @@ class CharacteristicGenerator:
             # Combine system and user prompts for Gemini
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
 
-            response = self.model.generate_content(full_prompt)
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,
+                contents=full_prompt
+            )
             content = response.text.strip()
 
             # Remove markdown code blocks if present

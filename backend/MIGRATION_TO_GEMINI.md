@@ -39,7 +39,7 @@ Visit https://makersuite.google.com/app/apikey
 
 #### `contextual_search.py`
 - **Old:** OpenAI GPT-4o-mini + Tavily search
-- **New:** Google Gemini 2.0 Flash + Google Search
+- **New:** Google Gemini 2.5 Flash + Google Search
 - **Changes:**
   - Replaced `from openai import OpenAI` with `import google.generativeai as genai`
   - Replaced `from tavily import TavilyClient` with `from googlesearch import search as google_search`
@@ -49,7 +49,7 @@ Visit https://makersuite.google.com/app/apikey
 
 #### `characteristic_generator.py`
 - **Old:** OpenAI GPT-4o-mini
-- **New:** Google Gemini 2.0 Flash
+- **New:** Google Gemini 2.5 Flash
 - **Changes:**
   - Replaced OpenAI client with Gemini
   - Updated generation calls to use Gemini API
@@ -60,11 +60,12 @@ Visit https://makersuite.google.com/app/apikey
 
 ### 4. Model Used
 
-**Google Gemini 2.0 Flash** (`gemini-2.0-flash`)
+**Google Gemini 2.5 Flash** (`gemini-2.5-flash`)
 - Fast inference speed
 - Cost-effective
 - High quality responses
 - Supports long context windows
+- Improved reasoning capabilities over 2.0
 
 ## Benefits
 
@@ -74,7 +75,7 @@ Visit https://makersuite.google.com/app/apikey
 - **No Tavily costs**: Eliminated $0.10 per search cost
 
 ### Performance
-- **gemini-2.0-flash**: Optimized for speed
+- **gemini-2.5-flash**: Optimized for speed with improved reasoning
 - **Parallel searches**: Maintained async architecture
 - **Same quality**: Comparable or better results
 

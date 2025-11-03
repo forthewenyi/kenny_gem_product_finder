@@ -1,14 +1,14 @@
 """
 Context-aware search implementation using AI-driven query generation.
 Based on Just-In-Time framework with attribute dependency reasoning.
-Now powered by Google Gemini instead of OpenAI.
+Now powered by Google Gemini 2.5 Flash.
 """
 import os
 import asyncio
 import time
 import json
 from typing import Dict, Any, List, Optional
-import google.generativeai as genai
+from google import genai
 import httpx
 from google_search_service import get_google_search_service
 
@@ -31,8 +31,8 @@ class ContextualKennySearch:
         if not api_key:
             raise ValueError("GOOGLE_API_KEY not found in environment variables")
 
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
+        self.client = genai.Client(api_key=api_key)
+        self.model_name = 'gemini-2.5-flash'
 
         # Initialize Google Search service (with fallback support)
         self.search_service = get_google_search_service()
@@ -40,7 +40,8 @@ class ContextualKennySearch:
     async def _generate_contextual_queries(
         self,
         product_query: str,
-        user_context: Optional[Dict[str, Any]] = None
+        user_context: Optional[Dict[str, Any]] = None,
+        characteristics: Optional[Dict[str, Any]] = None
     ) -> Dict[str, List[str]]:
         """
         Use AI to generate strategic search queries based on context.
@@ -53,9 +54,23 @@ class ContextualKennySearch:
         if user_context:
             context_str = f"\nUser context: {user_context}"
 
+        # Add user characteristics/preferences to context
+        if characteristics:
+            context_str += "\n\nUser preferences:"
+            for key, value in characteristics.items():
+                # Translate characteristic IDs to readable names
+                readable_key = key.replace('_', ' ').title()
+                if isinstance(value, list):
+                    context_str += f"\n  - {readable_key}: {', '.join(str(v) for v in value)}"
+                else:
+                    context_str += f"\n  - {readable_key}: {value}"
+
         prompt = f"""You are a product research expert. Generate strategic search queries to help find the best {product_query}.
 
 {context_str}
+
+IMPORTANT: If user preferences are provided above, tailor your queries to their specific needs.
+For example, if they specified household size or surface preference, focus queries on those aspects.
 
 Use the 5-phase research framework:
 
@@ -83,11 +98,11 @@ Generate 2-3 queries to discover real pain points:
 - Marketing gimmicks vs real features
 - What features are unnecessary
 
-5. VALUE SYNTHESIS PHASE
-Generate 1-2 queries for long-term value:
-- Long-term ownership experiences
-- Repair and maintenance reality
-- True cost of ownership
+5. VALUE SYNTHESIS PHASE (CRITICAL FOR DURABILITY)
+Generate 2-3 queries to validate actual lifespan and durability:
+- "{product_query} how long does it last reddit" (real user lifespan reports)
+- "{product_query} common failure points when to replace" (failure analysis)
+- "{product_query} warranty coverage lifespan years" (manufacturer claims vs reality)
 
 Focus on Reddit, expert review sites, and user experiences.
 
@@ -102,8 +117,11 @@ Return ONLY a JSON object with this structure:
 
 Make queries specific and actionable. Include "reddit" where appropriate for real user experiences."""
 
-        # Generate queries using Gemini
-        response = self.model.generate_content(prompt)
+        # Generate queries using Gemini (async)
+        response = await self.client.aio.models.generate_content(
+            model=self.model_name,
+            contents=prompt
+        )
         response_text = response.text
 
         # Clean markdown if present
@@ -114,18 +132,18 @@ Make queries specific and actionable. Include "reddit" where appropriate for rea
 
         queries = json.loads(response_text.strip())
 
-        # Flatten and limit to 10 total queries for cost/speed balance
+        # Flatten and limit to 11 total queries (2+2+2+2+3) for cost/speed balance
         all_queries = []
         for phase, phase_queries in queries.items():
             all_queries.extend(phase_queries)
 
-        # Return limited set (2 from each phase)
+        # Return limited set (2-3 from each phase, 3 for value_synthesis for durability validation)
         limited_queries = {
             "context_discovery": queries.get("context_discovery", [])[:2],
             "material_science": queries.get("material_science", [])[:2],
             "product_identification": queries.get("product_identification", [])[:2],
             "frustration_research": queries.get("frustration_research", [])[:2],
-            "value_synthesis": queries.get("value_synthesis", [])[:2]
+            "value_synthesis": queries.get("value_synthesis", [])[:3]  # 3 queries for durability validation
         }
 
         return limited_queries
@@ -253,7 +271,8 @@ Make queries specific and actionable. Include "reddit" where appropriate for rea
     async def search_products(
         self,
         query: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        characteristics: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         Main search entry point using contextual AI-driven approach.
@@ -261,7 +280,7 @@ Make queries specific and actionable. Include "reddit" where appropriate for rea
 
         # Phase 1: Generate contextual queries using AI
         print(f"\n🤖 Generating contextual research queries for: {query}")
-        queries_by_phase = await self._generate_contextual_queries(query, context)
+        queries_by_phase = await self._generate_contextual_queries(query, context, characteristics)
 
         # Show generated queries
         print("\n📋 Generated Research Plan:")
@@ -274,10 +293,20 @@ Make queries specific and actionable. Include "reddit" where appropriate for rea
         # Phase 3: Synthesize results using AI with context awareness
         print("\n🧠 Synthesizing context-aware recommendations...")
 
+        # Build characteristic context for AI
+        char_context = ""
+        if characteristics:
+            char_context = "\nUSER PREFERENCES:\n"
+            for key, value in characteristics.items():
+                if isinstance(value, list):
+                    char_context += f"  - {key}: {', '.join(value)}\n"
+                else:
+                    char_context += f"  - {key}: {value}\n"
+
         synthesis_prompt = f"""You are Kenny, an expert at finding high-quality products through context-aware analysis.
 
 USER QUERY: {query}
-USER CONTEXT: {context}
+USER CONTEXT: {context}{char_context}
 
 RESEARCH DATA (organized by phase):
 
@@ -307,14 +336,50 @@ Consider: attribute dependencies (cooking method + tools → material requiremen
 
 3. PRODUCT SELECTION
 Find: Products correctly built with optimal materials (not just "most popular")
-Extract: minimum 9 products (3 per tier) with specific models and brands
+Research: 20-30 products total across all price tiers for comprehensive coverage
+Rank: Within each tier by quality, durability, and value
+Extract: The BEST products from your research (will select top 3 per tier for display)
 
 4. FRUSTRATION AWARENESS
 Identify: Real pain points from long-term users
 Filter: Marketing gimmicks vs features that solve real problems
 
-5. VALUE SYNTHESIS
-Recommend: Best valuable products = longest-lasting for USER'S specific context
+5. VALUE SYNTHESIS (DURABILITY VALIDATION - CRITICAL!)
+For each product, YOU MUST extract lifespan from research sources:
+- Find user reports: "still using after X years", "lasted Y years", "broke after Z years"
+- Find failure patterns: "common failure points", "when to replace", "average lifespan"
+- Find warranty data: manufacturer claims vs actual user experiences
+- Calculate CONSERVATIVE lifespan estimate:
+  * If users report "5-10 years", use the LOWER bound (5 years)
+  * If warranty is 2 years but users report 8 years, use 8 years
+  * If no data found, use industry standard minimums (e.g., cast iron: 30+ years, nonstick: 2-3 years)
+  * NEVER guess optimistic lifespans without evidence
+- Include source evidence in web_sources for each lifespan claim
+
+TIER STRUCTURE (CATEGORY-RELATIVE, NOT ABSOLUTE):
+First, determine the typical price range for this product category from research:
+- Find minimum viable price (cheapest products that actually work)
+- Find maximum premium price (high-end products)
+- Calculate category price range
+
+Then distribute products across tiers using PERCENTILES:
+- GOOD tier: Bottom 25% of category price range (budget-conscious, entry-level)
+  * Value focus: Low upfront cost, adequate performance
+  * Lifespan: Shorter but acceptable for the category
+  * Example: Chef knife $20-50, Stand mixer $150-250, Cast iron $15-25
+
+- BETTER tier: 25-75% of category price range (mainstream, sweet spot)
+  * Value focus: Best cost-per-year, optimal durability
+  * Lifespan: Industry-standard longevity
+  * Example: Chef knife $50-150, Stand mixer $250-400, Cast iron $25-80
+
+- BEST tier: Top 25% of category price range (premium, buy-it-for-life)
+  * Value focus: Maximum lifespan, heirloom quality
+  * Lifespan: Outlasts cheaper alternatives 3-5x
+  * Example: Chef knife $150-400+, Stand mixer $400-700+, Cast iron $80-200+
+
+CRITICAL: Tiers are relative to CATEGORY, not absolute dollar amounts.
+A $200 chef knife is "best tier" but a $200 stand mixer is "good tier".
 
 Return JSON with:
 {{
@@ -324,9 +389,14 @@ Return JSON with:
     "optimal_materials": ["material1", "material2"],
     "material_reasoning": "Why these materials for this use case"
   }},
-  "good_tier": [3 products - $20-80, 2-5 years],
-  "better_tier": [3 products - $80-200, 8-15 years],
-  "best_tier": [3 products - $200-600+, 15-30+ years],
+  "category_price_range": {{
+    "minimum": lowest_viable_price,
+    "maximum": highest_premium_price,
+    "currency": "USD"
+  }},
+  "good_tier": [7-10 products in bottom 25% of category price range, RANKED from best to worst by durability score and cost-per-year],
+  "better_tier": [7-10 products in 25-75% of category price range, RANKED from best to worst by durability score and cost-per-year],
+  "best_tier": [7-10 products in top 25% of category price range, RANKED from best to worst by durability score and lifespan],
   "common_frustrations": [
     {{"issue": "...", "why_it_matters": "...", "how_to_avoid": "..."}}
   ],
@@ -336,18 +406,37 @@ Return JSON with:
 }}
 
 Each product must include:
-- name, brand, category, price, lifespan
+- name (CRITICAL - MUST include size/variant if applicable: "Lodge 10-inch Cast Iron Skillet", "KitchenAid 5-qt Stand Mixer", etc.)
+- brand, category, price
+- lifespan (CRITICAL - MUST be validated from VALUE SYNTHESIS research data)
+  * Extract from user reports: "lasted X years", "still working after Y years"
+  * Use CONSERVATIVE estimates (lower bound of ranges)
+  * Include source URLs that mention lifespan in web_sources
+  * Format: "5-10 years" or "30+ years" (with evidence)
+- durability_data (CRITICAL - extract from VALUE SYNTHESIS research):
+  * score: 0-100 (based on failure rates and user reports)
+  * average_lifespan_years: Conservative average from user reports
+  * still_working_after_5years_percent: Estimate from "still working after X years" reports
+  * total_user_reports: Count of user reports found
+  * common_failure_points: ["coating peels", "motor fails", "button breaks"]
+  * repairability_score: 0-100 (can it be repaired? parts available?)
+  * material_quality_indicators: ["solid construction", "cheap plastic buttons"]
+  * data_sources: List of Reddit/review URLs used for durability assessment
 - materials (CRITICAL - based on material science phase)
 - characteristics (5-8 normalized attributes)
 - key_features, why_its_a_gem
-- web_sources, maintenance_level, best_for, trade_offs
+- web_sources (MUST include sources that mention durability/lifespan)
+- maintenance_level, best_for, trade_offs
 - practical_metrics (cleaning_time, setup_time, learning_curve, weight, etc.)
 - context_fit (how well it matches the user's specific use case)
 
 Return ONLY valid JSON."""
 
-        # Generate synthesis using Gemini
-        response = self.model.generate_content(synthesis_prompt)
+        # Generate synthesis using Gemini (async)
+        response = await self.client.aio.models.generate_content(
+            model=self.model_name,
+            contents=synthesis_prompt
+        )
         response_text = response.text
 
         # Parse JSON response
@@ -357,6 +446,32 @@ Return ONLY valid JSON."""
             response_text = response_text.split("```")[1].split("```")[0]
 
         result = json.loads(response_text.strip())
+
+        # Store ALL researched products for caching (before filtering)
+        all_researched_products = {
+            "good_tier_all": result.get("good_tier", []),
+            "better_tier_all": result.get("better_tier", []),
+            "best_tier_all": result.get("best_tier", [])
+        }
+
+        # Select TOP 3 from each tier for display (they're already ranked by AI)
+        print(f"\n📊 Product Selection:")
+        print(f"  GOOD tier: {len(result.get('good_tier', []))} researched → selecting top 3")
+        print(f"  BETTER tier: {len(result.get('better_tier', []))} researched → selecting top 3")
+        print(f"  BEST tier: {len(result.get('best_tier', []))} researched → selecting top 3")
+
+        result["good_tier"] = result.get("good_tier", [])[:3]
+        result["better_tier"] = result.get("better_tier", [])[:3]
+        result["best_tier"] = result.get("best_tier", [])[:3]
+
+        # Keep all researched products for database caching
+        result["all_researched_products"] = all_researched_products
+        result["total_products_researched"] = (
+            len(all_researched_products["good_tier_all"]) +
+            len(all_researched_products["better_tier_all"]) +
+            len(all_researched_products["best_tier_all"])
+        )
+        result["total_products_displayed"] = 9  # Always display 9 (top 3 per tier)
 
         # Calculate search metrics
         total_sources = sum(len(results) for results in results_by_phase.values())
@@ -378,6 +493,49 @@ Return ONLY valid JSON."""
             "frustration_research": len(results_by_phase['frustration_research']),
             "value_synthesis": len(results_by_phase['value_synthesis'])
         }
+
+        # Aggregate characteristics from all displayed products
+        characteristic_counts = {}
+        characteristic_products = {}
+
+        all_displayed_products = (
+            result.get("good_tier", []) +
+            result.get("better_tier", []) +
+            result.get("best_tier", [])
+        )
+
+        for product in all_displayed_products:
+            product_name = product.get("name", "Unknown")
+            characteristics = product.get("characteristics", [])
+
+            # Handle both list and string formats
+            if isinstance(characteristics, str):
+                characteristics = [characteristics]
+
+            for char in characteristics:
+                # Clean up characteristic text
+                char = char.strip()
+                if not char:
+                    continue
+
+                # Count occurrences
+                if char not in characteristic_counts:
+                    characteristic_counts[char] = 0
+                    characteristic_products[char] = []
+
+                characteristic_counts[char] += 1
+                characteristic_products[char].append(product_name)
+
+        # Build aggregated_characteristics array
+        aggregated_characteristics = []
+        for char, count in sorted(characteristic_counts.items(), key=lambda x: x[1], reverse=True):
+            aggregated_characteristics.append({
+                "label": char,
+                "count": count,
+                "product_names": characteristic_products[char]
+            })
+
+        result["aggregated_characteristics"] = aggregated_characteristics
 
         return result
 

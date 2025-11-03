@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 """
-Standalone script to test and pretty-print search results
+Standalone script to test and pretty-print contextual search results
 No pytest required - just run: python test_search_pretty.py
 
-Change the QUERY variable to test different products
+USAGE:
+1. Change the QUERY variable to test different products
+2. (Optional) Uncomment TEST_CHARACTERISTICS to test personalized search
+3. Run: python test_search_pretty.py
+
+FEATURES TESTED:
+- AI-driven contextual search with Google Gemini
+- Multi-phase research (context, materials, products, frustrations, value)
+- Durability validation from user reports
+- Personalized search based on user characteristics
+- Quality checks for product data completeness
 """
 
 import asyncio
@@ -20,6 +30,13 @@ from contextual_search import get_contextual_search
 
 # ========== CONFIGURE YOUR TEST HERE ==========
 QUERY = "cast iron skillet"  # Change this to test different products
+
+# Test with user characteristics (personalization)
+TEST_CHARACTERISTICS = {
+    # "household_size": "1-2",
+    # "surface": "pre_seasoned",
+    # "maintenance": "minimal"
+}
 # ===============================================
 
 
@@ -35,22 +52,32 @@ async def test_search():
 
     result = await search.search_products(
         query=QUERY,
-        context={"location": "US"}
+        context={"location": "US"},
+        characteristics=TEST_CHARACTERISTICS if TEST_CHARACTERISTICS else None
     )
 
     # ========== METRICS ==========
     print(f"\n{'='*80}")
     print("📊 SEARCH METRICS")
     print(f"{'='*80}")
-    if "real_search_metrics" in result:
-        metrics = result["real_search_metrics"]
-        print(f"✓ Total sources analyzed: {metrics.get('total_sources_analyzed', 0)}")
-        print(f"✓ Reddit threads: {metrics.get('reddit_threads', 0)}")
-        print(f"✓ Expert reviews: {metrics.get('expert_reviews', 0)}")
-        print(f"✓ Search queries executed: {metrics.get('search_queries_executed', 0)}")
-        print(f"\nQueries used:")
-        for i, q in enumerate(metrics.get('search_queries', []), 1):
-            print(f"  {i}. {q}")
+    print(f"✓ Search approach: {result.get('search_approach', 'N/A')}")
+    print(f"✓ Total sources analyzed: {result.get('total_sources_analyzed', 0)}")
+    print(f"✓ Total queries generated: {result.get('queries_generated', 0)}")
+    print(f"✓ Total products researched: {result.get('total_products_researched', 0)}")
+    print(f"✓ Total products displayed: {result.get('total_products_displayed', 9)}")
+
+    if "sources_by_phase" in result:
+        print(f"\n📚 Sources by research phase:")
+        for phase, count in result["sources_by_phase"].items():
+            print(f"  • {phase.replace('_', ' ').title()}: {count} sources")
+
+    if "search_queries" in result:
+        print(f"\n🔍 Research queries used:")
+        for i, query_info in enumerate(result["search_queries"], 1):
+            if isinstance(query_info, dict):
+                print(f"  {i}. [{query_info.get('phase', 'N/A')}] {query_info.get('query', 'N/A')}")
+            else:
+                print(f"  {i}. {query_info}")
 
     # ========== PRODUCT COUNTS ==========
     good_count = len(result.get("good_tier", []))
@@ -85,7 +112,19 @@ async def test_search():
             print(f"{'-'*80}")
             print(f"📦 Brand: {product.get('brand', 'N/A')}")
             print(f"💰 Price: ${product.get('price', 0)}")
-            print(f"⏰ Lifespan: {product.get('lifespan', 0)} years")
+            print(f"⏰ Lifespan: {product.get('lifespan', 'N/A')}")
+
+            # Durability data (new in contextual_search)
+            if 'durability_data' in product and product['durability_data']:
+                dd = product['durability_data']
+                print(f"\n🛡️  Durability Assessment:")
+                print(f"   Score: {dd.get('score', 'N/A')}/100")
+                print(f"   Avg lifespan: {dd.get('average_lifespan_years', 'N/A')} years")
+                print(f"   Still working after 5 years: {dd.get('still_working_after_5years_percent', 'N/A')}%")
+                print(f"   User reports analyzed: {dd.get('total_user_reports', 'N/A')}")
+                print(f"   Repairability: {dd.get('repairability_score', 'N/A')}/100")
+                if dd.get('common_failure_points'):
+                    print(f"   Failure points: {', '.join(dd['common_failure_points'])}")
 
             # Calculate cost per year
             if product.get('price') and product.get('lifespan'):
@@ -109,6 +148,9 @@ async def test_search():
 
             # Characteristics
             characteristics = product.get('characteristics', [])
+            # Handle both string and list formats
+            if isinstance(characteristics, str):
+                characteristics = [characteristics] if characteristics else []
             print(f"\n🏷️  Characteristics ({len(characteristics)}):")
             if characteristics:
                 for char in characteristics:
@@ -118,6 +160,9 @@ async def test_search():
 
             # Materials
             materials = product.get('materials', [])
+            # Handle both string and list formats
+            if isinstance(materials, str):
+                materials = [materials] if materials else []
             print(f"\n🔧 Materials ({len(materials)}):")
             if materials:
                 for mat in materials:
@@ -127,9 +172,15 @@ async def test_search():
 
             # Key features
             features = product.get('key_features', [])
-            print(f"\n✨ Key Features ({len(features)}):")
-            for feat in features:
-                print(f"   • {feat}")
+            # Handle both string and list formats
+            if isinstance(features, str):
+                features = [features] if features else []
+            print(f"\n✨ Key Features:")
+            if features:
+                for feat in features:
+                    print(f"   • {feat}")
+            else:
+                print("   No features listed")
 
             # Why it's a gem
             print(f"\n💎 Why It's a Gem:")
@@ -154,6 +205,9 @@ async def test_search():
 
             # Trade-offs
             tradeoffs = product.get('trade_offs', [])
+            # Handle both string and list formats
+            if isinstance(tradeoffs, str):
+                tradeoffs = [tradeoffs] if tradeoffs else []
             if tradeoffs:
                 print(f"\n⚠️  Trade-offs:")
                 for tradeoff in tradeoffs:
