@@ -112,10 +112,10 @@ export default function CharacteristicsSection({
       {/* Section Header */}
       <div className="mb-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide mb-1">
-          Kenny's Buying Guide for {displayQuery}
+          Common Product Characteristics
         </h2>
         <p className="text-xs text-gray-500 tracking-wide">
-          Based on {uniqueProductCount} product{uniqueProductCount !== 1 ? 's' : ''} found, here's what to look for:
+          Based on {uniqueProductCount} product{uniqueProductCount !== 1 ? 's' : ''} found • Click to filter results
         </p>
       </div>
 

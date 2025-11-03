@@ -22,6 +22,8 @@ export default function Header({ onNavigate, onSearch }: HeaderProps) {
     { id: 'cookware', label: 'COOKWARE' },
     { id: 'knives', label: 'KNIVES' },
     { id: 'bakeware', label: 'BAKEWARE' },
+    { id: 'small_appliances', label: 'SMALL APPLIANCES' },
+    { id: 'kitchen_tools', label: 'KITCHEN TOOLS' },
   ] as const
 
   const handleCategoryClick = (categoryId: string) => {
@@ -192,9 +194,6 @@ function MobileCategorySection({ category, label, isExpanded, onToggle, onItemSe
                   >
                     <span className="text-black uppercase tracking-wide">
                       {item.term}
-                    </span>
-                    <span className="ml-2 text-[9px] text-[#79786c]">
-                      ({item.count})
                     </span>
                   </button>
                 </li>

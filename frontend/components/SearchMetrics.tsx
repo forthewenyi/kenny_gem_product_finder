@@ -18,17 +18,26 @@ interface SearchMetricsProps {
     frustration_research?: number
     value_synthesis?: number
   }
+  totalProductsResearched?: number
+  totalProductsDisplayed?: number
+  fromCache?: boolean
 }
 
 export default function SearchMetrics({
   searchQueries = [],
   totalSourcesAnalyzed = 0,
   queriesGenerated = 0,
-  sourcesByPhase = {}
+  sourcesByPhase = {},
+  totalProductsResearched = 0,
+  totalProductsDisplayed = 9,
+  fromCache = false
 }: SearchMetricsProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
-  if (!searchQueries || searchQueries.length === 0) {
+  // Show even if no queries (for cached results)
+  const hasMetrics = totalSourcesAnalyzed > 0 || queriesGenerated > 0 || totalProductsResearched > 0
+
+  if (!hasMetrics) {
     return null
   }
 
@@ -44,10 +53,13 @@ export default function SearchMetrics({
           <span className="text-xl">🔍</span>
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wide">
-              Search Transparency
+              Search Transparency {fromCache && <span className="text-[10px] text-gray-500 normal-case">(Cached)</span>}
             </h3>
             <p className="text-[11px] text-gray-600 mt-0.5">
-              Kenny analyzed {totalSourcesAnalyzed} sources across {queriesGenerated} research queries
+              Kenny analyzed <strong>{totalSourcesAnalyzed.toLocaleString()}</strong> sources from <strong>{queriesGenerated}</strong> searches
+              {totalProductsResearched > 0 && (
+                <> • Researched <strong>{totalProductsResearched}</strong> products, showing best {totalProductsDisplayed}</>
+              )}
             </p>
           </div>
         </div>
@@ -60,14 +72,22 @@ export default function SearchMetrics({
       {isExpanded && (
         <div className="mt-4 space-y-4">
           {/* Summary Stats */}
-          <div className="grid grid-cols-2 gap-3 text-[11px]">
+          <div className="grid grid-cols-4 gap-3 text-[11px]">
             <div className="bg-white p-3 border border-gray-200">
-              <div className="text-gray-500 uppercase tracking-wide mb-1">Total Queries</div>
+              <div className="text-gray-500 uppercase tracking-wide mb-1 text-[10px]">Research Queries</div>
               <div className="text-2xl font-bold">{queriesGenerated}</div>
             </div>
             <div className="bg-white p-3 border border-gray-200">
-              <div className="text-gray-500 uppercase tracking-wide mb-1">Sources Found</div>
-              <div className="text-2xl font-bold">{totalSourcesAnalyzed}</div>
+              <div className="text-gray-500 uppercase tracking-wide mb-1 text-[10px]">Sources Analyzed</div>
+              <div className="text-2xl font-bold">{totalSourcesAnalyzed.toLocaleString()}</div>
+            </div>
+            <div className="bg-white p-3 border border-gray-200">
+              <div className="text-gray-500 uppercase tracking-wide mb-1 text-[10px]">Products Researched</div>
+              <div className="text-2xl font-bold">{totalProductsResearched || '20+'}</div>
+            </div>
+            <div className="bg-white p-3 border border-gray-200">
+              <div className="text-gray-500 uppercase tracking-wide mb-1 text-[10px]">Best Shown</div>
+              <div className="text-2xl font-bold">{totalProductsDisplayed}</div>
             </div>
           </div>
 

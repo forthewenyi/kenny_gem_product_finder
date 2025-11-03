@@ -33,7 +33,10 @@ export default function FilterDropdown({
     }
   }, [isOpen])
 
-  const handleOptionClick = (optionValue: string) => {
+  const handleOptionClick = (optionValue: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    console.log('Option clicked:', optionValue)
+
     if (characteristic.multiSelect) {
       // Multi-select logic
       const currentValues = Array.isArray(value) ? value : value ? [value] : []
@@ -87,12 +90,19 @@ export default function FilterDropdown({
     <div className="relative" ref={dropdownRef}>
       {/* Dropdown Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-wider font-semibold transition-colors ${
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          e.preventDefault()
+          console.log('FilterDropdown clicked:', characteristic.filterLabel, 'current isOpen:', isOpen, 'will toggle to:', !isOpen)
+          setIsOpen(prev => !prev)
+        }}
+        className={`flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-wider font-semibold transition-colors cursor-pointer select-none ${
           hasValue
             ? 'bg-black text-white'
             : 'bg-white text-black border border-gray-300 hover:border-black'
         }`}
+        style={{ pointerEvents: 'auto' }}
       >
         {characteristic.filterLabel || characteristic.question}
         <span className="text-[10px]">{isOpen ? '▲' : '▼'}</span>
@@ -100,7 +110,7 @@ export default function FilterDropdown({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 shadow-lg z-50 min-w-[200px] max-w-[300px] animate-slideDown">
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 shadow-lg z-[9999] min-w-[200px] max-w-[300px] animate-slideDown">
           {/* Header with "Why it matters" tooltip */}
           {characteristic.whyItMatters && (
             <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
@@ -118,7 +128,8 @@ export default function FilterDropdown({
               return (
                 <button
                   key={option.value}
-                  onClick={() => handleOptionClick(option.value)}
+                  type="button"
+                  onClick={(e) => handleOptionClick(option.value, e)}
                   className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 ${
                     selected ? 'bg-gray-100' : ''
                   }`}
