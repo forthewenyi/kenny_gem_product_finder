@@ -19,12 +19,12 @@ export default function PageTitle({ query, category }: PageTitleProps) {
 
   const getDescription = () => {
     if (query && query.trim()) {
-      return `Browse all recommended ${query}, ordered by value tier.`
+      return `Browse all recommended ${query}.`
     }
     if (category && category !== 'all') {
-      return `Browse all recommended ${category}, ordered by value tier.`
+      return `Browse all recommended ${category}.`
     }
-    return 'Browse all recommended kitchen products, ordered by value tier.'
+    return 'Browse all recommended kitchen products.'
   }
 
   return (
@@ -35,7 +35,7 @@ export default function PageTitle({ query, category }: PageTitleProps) {
       <h1 className="text-4xl font-bold uppercase tracking-wide mb-2">
         {getTitle()}
       </h1>
-      <p className="text-xs text-[#79786c] mt-2" style={{ textTransform: 'none', letterSpacing: '0' }}>
+      <p className="text-[13px] text-[#79786c] mt-2" style={{ textTransform: 'none', letterSpacing: '0' }}>
         {getDescription()}
       </p>
     </div>

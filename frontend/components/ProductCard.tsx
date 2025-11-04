@@ -6,6 +6,7 @@ import { Product } from '@/types'
 interface ProductCardProps {
   product: Product
   onClick?: () => void
+  onViewDetails?: () => void // For opening the product detail modal
   comparisonMode?: boolean
   isSelected?: boolean
   selectionNumber?: number // 1, 2, or 3
@@ -16,6 +17,7 @@ interface ProductCardProps {
 export default function ProductCard({
   product,
   onClick,
+  onViewDetails,
   comparisonMode = false,
   isSelected = false,
   selectionNumber,
@@ -53,11 +55,11 @@ export default function ProductCard({
 
   return (
     <div
-      className={`bg-white flex flex-col cursor-pointer relative transition-all animate-fadeInUp ${
-        isSelected ? 'outline outline-3 outline-black outline-offset-[-3px]' : ''
+      className={`bg-white border flex flex-col cursor-pointer relative transition-all animate-fadeInUp ${
+        isSelected ? 'border-black ring-2 ring-black' : 'border-gray-200'
       }`}
       style={{ animationDelay: `${animationDelay * 50}ms` }}
-      onClick={onClick}
+      onClick={onViewDetails}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       role="button"
@@ -65,7 +67,7 @@ export default function ProductCard({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          onClick?.()
+          onViewDetails?.()
         }
       }}
       aria-label={`${product.name} by ${product.brand}, ${product.tier} tier, $${product.value_metrics.upfront_price}`}

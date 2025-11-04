@@ -103,6 +103,13 @@ export interface AggregatedCharacteristic {
   product_names: string[]
 }
 
+export interface BuyingCharacteristic {
+  label: string
+  reason: string
+  explanation: string
+  image_keyword: string
+}
+
 export interface RealSearchMetrics {
   total_sources_analyzed: number
   reddit_threads: number
@@ -121,9 +128,10 @@ export interface SearchResponse {
   }
   processing_time_seconds: number
   educational_insights: string[]
-  aggregated_characteristics: AggregatedCharacteristic[] // NEW: Real characteristics from products
-  real_search_metrics?: RealSearchMetrics | null // NEW: Real search metrics
-  // NEW: Search transparency data
+  aggregated_characteristics: AggregatedCharacteristic[] // Real characteristics from products for filtering
+  buying_characteristics?: BuyingCharacteristic[] | null // AI-generated buying guidance
+  real_search_metrics?: RealSearchMetrics | null // Real search metrics
+  // Search transparency data
   search_queries?: Array<{ phase: string; query: string }>
   total_sources_analyzed?: number
   queries_generated?: number

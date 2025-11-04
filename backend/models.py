@@ -169,6 +169,14 @@ class AggregatedCharacteristic(BaseModel):
     product_names: List[str] = Field(..., description="Names of products with this characteristic")
 
 
+class BuyingCharacteristic(BaseModel):
+    """AI-generated buying guidance characteristic"""
+    label: str = Field(..., description="Characteristic label (e.g., 'PRE-SEASONED', 'HEAVY BOTTOM')")
+    reason: str = Field(..., description="Short reason (3-5 words, e.g., 'Ready to use', 'Even heating')")
+    explanation: str = Field(..., description="Full explanation sentence explaining why this matters for quality")
+    image_keyword: str = Field(..., description="Keyword for image search (2-3 words)")
+
+
 class RealSearchMetrics(BaseModel):
     """Real metrics from the search process"""
     total_sources_analyzed: int = Field(..., description="Total web sources analyzed")
@@ -200,6 +208,7 @@ class SearchResponse(BaseModel):
     processing_time_seconds: float
     educational_insights: Optional[List[str]] = Field(default_factory=list, description="Tips and common mistakes")
     aggregated_characteristics: List[AggregatedCharacteristic] = Field(default_factory=list, description="Aggregated characteristics from all products for filtering")
+    buying_characteristics: Optional[List[BuyingCharacteristic]] = Field(None, description="AI-generated buying guidance characteristics")
     real_search_metrics: Optional[RealSearchMetrics] = Field(None, description="Real search metrics showing actual research done")
     # Search transparency fields for frontend display
     search_queries: Optional[List[PhaseQueryInfo]] = Field(None, description="All search queries with phase info")

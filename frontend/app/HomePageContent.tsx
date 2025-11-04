@@ -15,12 +15,14 @@ import SearchInterface from '@/components/SearchInterface'
 import ProductCard from '@/components/ProductCard'
 import SearchCounter from '@/components/SearchCounter'
 import SearchMetrics from '@/components/SearchMetrics'
+import ProductDetailModal from '@/components/ProductDetailModal'
 
 export default function HomePageContent() {
   const [results, setResults] = useState<SearchResponse | null>(null)
   const [compareProducts, setCompareProducts] = useState<Product[]>([])
   const [currentQuery, setCurrentQuery] = useState<string>('')
   const [currentCategory, setCurrentCategory] = useState<string>('all')
+  const [selectedProductForModal, setSelectedProductForModal] = useState<Product | null>(null)
 
   // Filter states
   const [selectedCharacteristics, setSelectedCharacteristics] = useState<string[]>([])
@@ -74,11 +76,13 @@ export default function HomePageContent() {
   }
 
   const handleCharacteristicClick = (characteristic: string) => {
-    // Simple toggle for characteristic selection (used for filtering products)
+    // Multi-select toggle for characteristic selection (used for filtering products)
     // No longer syncs with personalization filters - they are separate
     const isCurrentlySelected = selectedCharacteristics.includes(characteristic)
     setSelectedCharacteristics(prev =>
-      isCurrentlySelected ? [] : [characteristic]
+      isCurrentlySelected
+        ? prev.filter(c => c !== characteristic)  // Remove if selected
+        : [...prev, characteristic]                // Add if not selected
     )
   }
 
@@ -192,11 +196,12 @@ export default function HomePageContent() {
         />
       </div>
 
-      {/* Characteristics Section */}
-      {!searchMutation.isPending && results && results.aggregated_characteristics && results.aggregated_characteristics.length > 0 && (
+      {/* Characteristics Section - Show AI buying guidance if available */}
+      {!searchMutation.isPending && results && results.buying_characteristics && results.buying_characteristics.length > 0 && (
         <CharacteristicsSection
           query={currentQuery}
-          aggregatedCharacteristics={results.aggregated_characteristics}
+          buyingCharacteristics={results.buying_characteristics}
+          aggregatedCharacteristics={results.aggregated_characteristics || []}
           selectedCharacteristics={selectedCharacteristics}
           onCharacteristicClick={handleCharacteristicClick}
         />
@@ -206,6 +211,7 @@ export default function HomePageContent() {
       {!searchMutation.isPending && results && (
         <div className="max-w-[1400px] mx-auto px-10 pb-5">
           <SearchMetrics
+            query={currentQuery}
             searchQueries={results.search_queries}
             totalSourcesAnalyzed={results.total_sources_analyzed}
             queriesGenerated={results.queries_generated}
@@ -326,7 +332,7 @@ export default function HomePageContent() {
             {filteredProducts.length > 0 && (
               <div className="max-w-[1400px] mx-auto px-10 mb-16">
                 <p className="text-center mb-6 text-[13px] text-[#79786c] uppercase tracking-wide">
-                  👆 Click to select up to 3 products to compare
+                  👆 Click to view details • Use "Select to Compare" button for side-by-side comparison
                   {selectedCharacteristics.length > 0 && (
                     <span className="block mt-1 text-[11px]">
                       Showing {filteredProducts.length} of {allProducts.length} products
@@ -340,6 +346,7 @@ export default function HomePageContent() {
                       key={idx}
                       product={product}
                       onClick={() => toggleCompare(product)}
+                      onViewDetails={() => setSelectedProductForModal(product)}
                       comparisonMode={true}
                       isSelected={compareProducts.some(p => p.name === product.name)}
                       selectionNumber={getSelectionNumber(product)}
@@ -383,7 +390,7 @@ export default function HomePageContent() {
               </p>
             </div>
 
-            {/* 3-Column Product Cards */}
+            {/* 3-Column Product Headers - Simplified */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
               {compareProducts.map((product, idx) => {
                 const tierColors = {
@@ -406,71 +413,63 @@ export default function HomePageContent() {
                       </span>
                     )}
 
-                    <h3 className="font-semibold text-[16px] uppercase tracking-wide mt-8 mb-2">
+                    <h3 className="font-semibold text-[16px] uppercase tracking-wide mt-8">
                       {product.name}
                     </h3>
-
-                    <p className="text-[12px] text-[#79786c] mb-5 min-h-[40px]">
-                      {product.why_its_a_gem || product.best_for || 'High-quality option'}
-                    </p>
-
-                    <p className="text-[20px] font-bold mb-2">
-                      ${product.value_metrics.upfront_price}
-                    </p>
-
-                    <p className="text-[11px] text-[#79786c] mb-5">
-                      ${product.value_metrics.cost_per_year}/year • {product.value_metrics.expected_lifespan_years}+ year lifespan
-                    </p>
                   </div>
                 )
               })}
             </div>
 
-            {/* Comparison Rows */}
+            {/* Comparison Rows - Consolidated */}
             <div className="mt-12 bg-white space-y-6">
-              {/* Characteristics Comparison */}
+              {/* 1. VALUE AT A GLANCE - Consolidated pricing, lifespan, why_its_a_gem */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Key Characteristics</h3>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Value at a Glance</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {compareProducts.map((product, idx) => (
-                    <div key={idx} className="space-y-1">
-                      {product.characteristics && product.characteristics.length > 0 ? (
-                        product.characteristics.slice(0, 5).map((char, charIdx) => (
-                          <div key={charIdx} className="text-xs text-gray-700">
-                            • {char}
+                    <div key={idx} className="bg-[#f8f8f8] p-4">
+                      <div className="space-y-3">
+                        {/* Price Grid */}
+                        <div className="space-y-2 pb-3 border-b border-gray-200">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-500">Upfront Price:</span>
+                            <span className="font-bold text-gray-900 text-base">${product.value_metrics?.upfront_price || 'N/A'}</span>
                           </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-gray-400">No characteristics listed</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Materials Comparison */}
-              <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Materials</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => (
-                    <div key={idx}>
-                      {product.materials && product.materials.length > 0 ? (
-                        <div className="space-y-1">
-                          {product.materials.map((mat, matIdx) => (
-                            <div key={matIdx} className="text-xs text-gray-700">• {mat}</div>
-                          ))}
+                          {product.value_metrics && (
+                            <>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-500">Cost per Year:</span>
+                                <span className="font-medium text-green-600">${product.value_metrics.cost_per_year.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-500">Cost per Day:</span>
+                                <span className="font-medium text-gray-600">${product.value_metrics.cost_per_day.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-500">Expected Lifespan:</span>
+                                <span className="font-bold text-gray-900">{product.value_metrics.expected_lifespan_years}+ years</span>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      ) : (
-                        <p className="text-xs text-gray-400">Not specified</p>
-                      )}
+
+                        {/* Why It's a Gem */}
+                        <div className="pt-1">
+                          <div className="text-[10px] text-gray-500 uppercase mb-1 font-semibold">Why Kenny Recommends:</div>
+                          <div className="text-xs text-gray-700 leading-relaxed">
+                            {product.why_its_a_gem || 'High-quality, value-focused option'}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Quality Score Comparison */}
+              {/* 2. QUALITY & DURABILITY */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Quality</h3>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Quality & Durability</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {compareProducts.map((product, idx) => (
                     <div key={idx}>
@@ -512,7 +511,7 @@ export default function HomePageContent() {
                           {product.quality_data.material_quality_indicators &&
                            product.quality_data.material_quality_indicators.length > 0 && (
                             <div className="pt-2 border-t">
-                              <div className="text-xs text-gray-500 mb-1">Quality:</div>
+                              <div className="text-xs text-gray-500 mb-1">Quality Indicators:</div>
                               {product.quality_data.material_quality_indicators.map((indicator, i) => (
                                 <div key={i} className="text-xs">• {indicator}</div>
                               ))}
@@ -523,7 +522,7 @@ export default function HomePageContent() {
                           {product.quality_data.common_failure_points &&
                            product.quality_data.common_failure_points.length > 0 && (
                             <div className="pt-2 border-t">
-                              <div className="text-xs text-gray-500 mb-1">Failure Points:</div>
+                              <div className="text-xs text-gray-500 mb-1">Potential Issues:</div>
                               {product.quality_data.common_failure_points.map((point, i) => (
                                 <div key={i} className="text-xs text-red-600">• {point}</div>
                               ))}
@@ -538,41 +537,49 @@ export default function HomePageContent() {
                 </div>
               </div>
 
-              {/* Best For Comparison */}
+              {/* 3. KEY FEATURES - Combined characteristics + materials */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Best For</h3>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Key Features</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {compareProducts.map((product, idx) => (
-                    <div key={idx}>
-                      <p className="text-xs text-gray-700">{product.best_for || 'General use'}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Trade-offs Comparison */}
-              <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Trade-offs</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => (
-                    <div key={idx}>
-                      {product.trade_offs && product.trade_offs.length > 0 ? (
-                        <div className="space-y-1">
-                          {(Array.isArray(product.trade_offs) ? product.trade_offs : [product.trade_offs]).map((tradeoff, tIdx) => (
-                            <div key={tIdx} className="text-xs text-gray-600">• {tradeoff}</div>
-                          ))}
+                    <div key={idx} className="space-y-3">
+                      {/* Characteristics */}
+                      {product.characteristics && product.characteristics.length > 0 && (
+                        <div>
+                          <div className="text-[10px] text-gray-500 uppercase mb-2 font-semibold">Features:</div>
+                          <div className="space-y-1">
+                            {product.characteristics.slice(0, 5).map((char, charIdx) => (
+                              <div key={charIdx} className="text-xs text-gray-700">
+                                • {char}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ) : (
-                        <p className="text-xs text-gray-400">None noted</p>
+                      )}
+
+                      {/* Materials */}
+                      {product.materials && product.materials.length > 0 && (
+                        <div className="pt-2 border-t border-gray-200">
+                          <div className="text-[10px] text-gray-500 uppercase mb-2 font-semibold">Materials:</div>
+                          <div className="space-y-1">
+                            {product.materials.map((mat, matIdx) => (
+                              <div key={matIdx} className="text-xs text-gray-700">• {mat}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {!product.characteristics?.length && !product.materials?.length && (
+                        <p className="text-xs text-gray-400">No features listed</p>
                       )}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Hassles of Ownership */}
+              {/* 4. PRACTICAL USE - Daily Hassles */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Daily Hassles</h3>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Practical Use</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {compareProducts.map((product, idx) => (
                     <div key={idx}>
@@ -643,20 +650,29 @@ export default function HomePageContent() {
                 </div>
               </div>
 
-              {/* Lifespan Comparison */}
+              {/* 5. BEST FOR & TRADE-OFFS - Consolidated considerations */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Expected Lifespan</h3>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Considerations</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {compareProducts.map((product, idx) => (
-                    <div key={idx} className="text-center">
-                      <div className="text-2xl font-bold text-gray-900 mb-1">
-                        {product.value_metrics?.expected_lifespan_years
-                          ? `${product.value_metrics.expected_lifespan_years} years`
-                          : 'N/A'}
+                    <div key={idx} className="space-y-3">
+                      {/* Best For */}
+                      <div>
+                        <div className="text-[10px] text-gray-500 uppercase mb-1 font-semibold">✓ Best For:</div>
+                        <p className="text-xs text-gray-700 leading-relaxed">
+                          {product.best_for || 'General use'}
+                        </p>
                       </div>
-                      {product.quality_data && product.quality_data.total_user_reports > 0 && (
-                        <div className="text-[10px] text-gray-500">
-                          Based on {product.quality_data.total_user_reports} user reports
+
+                      {/* Trade-offs */}
+                      {product.trade_offs && product.trade_offs.length > 0 && (
+                        <div className="pt-2 border-t border-gray-200">
+                          <div className="text-[10px] text-gray-500 uppercase mb-1 font-semibold">⚠ Trade-offs:</div>
+                          <div className="space-y-1">
+                            {(Array.isArray(product.trade_offs) ? product.trade_offs : [product.trade_offs]).map((tradeoff, tIdx) => (
+                              <div key={tIdx} className="text-xs text-gray-600">• {tradeoff}</div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -664,101 +680,21 @@ export default function HomePageContent() {
                 </div>
               </div>
 
-              {/* Value Analysis */}
+              {/* 6. USER REVIEWS SUMMARY - Simplified, no duplicate content */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Value Analysis</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => (
-                    <div key={idx}>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-gray-500">Price:</span>
-                          <span className="font-bold text-gray-900">${product.value_metrics?.upfront_price || 'N/A'}</span>
-                        </div>
-                        {product.value_metrics && (
-                          <>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-500">Cost/year:</span>
-                              <span className="font-medium text-green-600">${product.value_metrics.cost_per_year.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-500">Cost/day:</span>
-                              <span className="font-medium text-gray-600">${product.value_metrics.cost_per_day.toFixed(2)}</span>
-                            </div>
-                          </>
-                        )}
-                        <div className="pt-2 border-t">
-                          <div className="text-xs text-gray-700 leading-relaxed">
-                            {product.why_its_a_gem}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* What Makes It Unique */}
-              <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">What Makes It Unique</h3>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">User Reviews Summary</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {compareProducts.map((product, idx) => {
-                    // Generate unique differentiators by comparing to other products
-                    const otherProducts = compareProducts.filter((_, i) => i !== idx);
-                    const uniqueChars = product.characteristics?.filter(char =>
-                      !otherProducts.some(other => other.characteristics?.includes(char))
-                    ) || [];
-
-                    return (
-                      <div key={idx}>
-                        {uniqueChars.length > 0 ? (
-                          <div className="space-y-1">
-                            {uniqueChars.slice(0, 5).map((char, i) => (
-                              <div key={i} className="text-xs text-gray-700">• {char}</div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-gray-400">
-                            Shares characteristics with other options
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* What People Are Saying - Grid Row */}
-              <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">What People Are Saying</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => {
-                    // Generate review summaries from product data
-                    const reviewSummaries = [
-                      {
-                        type: 'Why It\'s Great',
-                        content: product.why_its_a_gem,
-                        icon: '💎'
-                      },
-                      {
-                        type: 'Key Features',
-                        content: Array.isArray(product.key_features)
-                          ? product.key_features[0]
-                          : product.key_features,
-                        icon: '✨'
-                      },
-                      {
-                        type: 'Best For',
-                        content: product.best_for,
-                        icon: '👥'
-                      }
-                    ].filter(item => item.content);
+                    // Only show key features (not why_its_a_gem or best_for, already shown above)
+                    const keyFeature = Array.isArray(product.key_features)
+                      ? product.key_features[0]
+                      : product.key_features;
 
                     return (
                       <details key={idx} className="group">
                         <summary className="cursor-pointer list-none">
                           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <span className="text-xs font-medium">Read reviews summary</span>
+                            <span className="text-xs font-medium">View user feedback</span>
                             <svg className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
@@ -766,23 +702,21 @@ export default function HomePageContent() {
                         </summary>
 
                         <div className="mt-4 space-y-3">
-                          {reviewSummaries.map((review, reviewIdx) => (
-                            <div key={reviewIdx} className="p-3 bg-gray-50 rounded-lg">
+                          {keyFeature && (
+                            <div className="p-3 bg-gray-50 rounded-lg">
                               <div className="flex items-start gap-2">
-                                <div className="flex-shrink-0 text-lg">
-                                  {review.icon}
-                                </div>
+                                <div className="flex-shrink-0 text-lg">✨</div>
                                 <div className="flex-1">
                                   <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">
-                                    {review.type}
+                                    Top User Insight
                                   </div>
                                   <div className="text-xs text-gray-700 leading-relaxed">
-                                    "{review.content}"
+                                    "{keyFeature}"
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          ))}
+                          )}
 
                           {/* Sources Citation */}
                           <div className="pt-3 mt-3 border-t border-gray-200">
@@ -790,7 +724,6 @@ export default function HomePageContent() {
                               Sources analyzed:
                             </div>
                             <div className="space-y-1">
-                              {/* Prioritize quality data sources, fall back to web sources */}
                               {(product.quality_data?.data_sources && product.quality_data.data_sources.length > 0
                                 ? product.quality_data.data_sources
                                 : product.web_sources || []
@@ -823,9 +756,9 @@ export default function HomePageContent() {
                 </div>
               </div>
 
-              {/* Buy - Grid Row */}
+              {/* 7. WHERE TO BUY */}
               <div className="border-t pt-6 pb-6 overflow-visible">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Buy</h3>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Where to Buy</h3>
                 <div className="grid grid-cols-3 gap-4 overflow-visible">
                   {compareProducts.map((product, idx) => {
                     const getDestination = () => {
@@ -863,7 +796,7 @@ export default function HomePageContent() {
                               rel="noopener noreferrer"
                               className="peer group relative block w-full py-3 px-4 bg-black text-white text-center text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
                             >
-                              Buy
+                              Buy Now
                             </a>
                             {/* Tooltip - shows on hover */}
                             {destination && (
@@ -900,6 +833,14 @@ export default function HomePageContent() {
           </div>
         )}
       </div>
+
+      {/* Product Detail Modal */}
+      {selectedProductForModal && (
+        <ProductDetailModal
+          product={selectedProductForModal}
+          onClose={() => setSelectedProductForModal(null)}
+        />
+      )}
     </main>
   )
 }

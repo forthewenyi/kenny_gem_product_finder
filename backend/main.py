@@ -452,6 +452,32 @@ async def search_products(query: SearchQuery):
             for char, count in characteristic_counts.most_common(10)  # Top 10 characteristics
         ]
 
+        # Generate AI buying characteristics
+        from models import BuyingCharacteristic
+        buying_characteristics = None
+        try:
+            print(f"🤖 Generating AI buying characteristics for query: {query.query}")
+            generator = get_characteristic_generator()
+            ai_chars = await generator.generate_characteristics(
+                query=query.query,
+                location="United States",
+                context=query.context or {}
+            )
+            # Convert to BuyingCharacteristic model
+            buying_characteristics = [
+                BuyingCharacteristic(
+                    label=char["label"],
+                    reason=char["reason"],
+                    explanation=char["explanation"],
+                    image_keyword=char["image_keyword"]
+                )
+                for char in ai_chars
+            ]
+            print(f"✓ Generated {len(buying_characteristics)} buying characteristics")
+        except Exception as e:
+            print(f"⚠️  Failed to generate buying characteristics: {e}")
+            # Continue without buying characteristics
+
         # Parse real search metrics if provided
         real_search_metrics = None
         search_queries_list = None
@@ -508,6 +534,7 @@ async def search_products(query: SearchQuery):
             processing_time_seconds=round(processing_time, 2),
             educational_insights=agent_result.get("educational_insights", []),
             aggregated_characteristics=aggregated_characteristics,
+            buying_characteristics=buying_characteristics,
             real_search_metrics=real_search_metrics,
             # Search transparency fields
             search_queries=search_queries_list,

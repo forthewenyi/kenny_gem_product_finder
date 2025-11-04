@@ -62,7 +62,7 @@ export default function SearchInterface({
       </form>
 
       {/* Helper Text */}
-      <p id="search-helper-text" className="text-[11px] text-gray-500 mt-3 tracking-wide">
+      <p id="search-helper-text" className="text-[13px] text-gray-500 mt-3 tracking-wide">
         {isLoading ? (
           <span className="flex items-center gap-2">
             <span className="inline-block animate-swing-pickaxe text-2xl">⛏️</span>
@@ -81,7 +81,7 @@ export default function SearchInterface({
             </span>
           </span>
         ) : (
-          '💡 Search to see Kenny\'s buying guidance • Use Value Preference filter to personalize results'
+          '💡 Search to see Kenny\'s buying guidance'
         )}
       </p>
 
