@@ -81,7 +81,7 @@ export default function ProductCard({
 
       {/* Kenny's Pick Badge */}
       {isKennysPick && (
-        <div className="absolute top-3 left-3 bg-black text-white px-2.5 py-1 text-[10px] uppercase tracking-wide flex items-center gap-1 z-10">
+        <div className="absolute top-3 left-3 bg-black text-white px-2.5 py-1 text-[11px] uppercase tracking-wide flex items-center gap-1 z-10">
           💎 Kenny's Pick
         </div>
       )}
@@ -107,7 +107,7 @@ export default function ProductCard({
         {/* "Select to Compare" Button - Shows on Hover */}
         {comparisonMode && (
           <button
-            className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-[#f8f8f8] border border-[#e5e5e5] px-3.5 py-1.5 text-[11px] uppercase tracking-wide transition-opacity duration-300 hover:bg-black hover:text-white hover:border-black"
+            className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-[#f8f8f8] border border-[#e5e5e5] px-3.5 py-1.5 text-xs uppercase tracking-wide transition-opacity duration-300 hover:bg-black hover:text-white hover:border-black"
             style={{ opacity: isHovering ? 1 : 0 }}
             onClick={(e) => {
               e.stopPropagation()
@@ -122,24 +122,24 @@ export default function ProductCard({
       {/* Product Info */}
       <div className="bg-[#f8f8f8] p-3 flex flex-col gap-1.5">
         {/* Product Name */}
-        <div className="text-[11px] uppercase tracking-wide font-normal text-[#79786c]">
+        <div className="text-xs uppercase tracking-wide font-normal text-[#79786c]">
           {product.name}
         </div>
 
         {/* Pricing */}
-        <div className="flex items-center gap-1.5 text-[11px]">
-          <span className="font-semibold text-black">${product.value_metrics.upfront_price}</span>
-          <span className="text-[#79786c] text-[10px]">• ${product.value_metrics.cost_per_year}/year</span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-semibold text-black text-lg">${product.value_metrics.upfront_price}</span>
+          <span className="text-[#79786c] text-xs">• ${product.value_metrics.cost_per_year}/year</span>
         </div>
 
         {/* Quality */}
-        <div className="flex items-center gap-1.5 text-[10px] text-[#79786c]">
-          <span className="text-[#fbbf24] text-[11px]">{getStars(qualityScore)}</span>
-          <span>Quality: <span className="text-black font-semibold">{(qualityScore / 10).toFixed(1)}</span></span>
+        <div className="flex items-center gap-1.5 text-xs text-[#79786c]">
+          <span className="text-[#fbbf24] text-sm">{getStars(qualityScore)}</span>
+          <span>Quality: <span className="text-black font-semibold text-sm">{(qualityScore / 10).toFixed(1)}</span></span>
         </div>
 
         {/* Tier Badge */}
-        <span className={`inline-block text-[9px] px-2 py-0.5 uppercase tracking-wide font-semibold mt-1 ${getTierClass(product.tier)}`}>
+        <span className={`inline-block text-[10px] px-2 py-0.5 uppercase tracking-wide font-semibold mt-1 ${getTierClass(product.tier)}`}>
           {product.tier}
         </span>
       </div>
