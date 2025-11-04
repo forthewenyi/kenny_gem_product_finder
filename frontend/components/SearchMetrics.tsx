@@ -26,7 +26,7 @@ interface SearchMetricsProps {
 
 export default function SearchMetrics({
   query = '',
-  searchQueries,
+  searchQueries = [],
   totalSourcesAnalyzed = 0,
   queriesGenerated = 0,
   sourcesByPhase = {},
@@ -34,8 +34,6 @@ export default function SearchMetrics({
   totalProductsDisplayed = 9,
   fromCache = false
 }: SearchMetricsProps) {
-  // Ensure searchQueries is always an array
-  const safeSearchQueries = searchQueries || []
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Convert technical phase names to customer-facing labels
@@ -126,8 +124,8 @@ export default function SearchMetrics({
               Research Queries Executed:
             </h4>
 
-            {safeSearchQueries && safeSearchQueries.length > 0 ? Object.entries(
-              safeSearchQueries.reduce((acc, { phase, query }) => {
+            {Object.entries(
+              searchQueries.reduce((acc, { phase, query }) => {
                 if (!acc[phase]) acc[phase] = []
                 acc[phase].push(query)
                 return acc
@@ -153,11 +151,7 @@ export default function SearchMetrics({
                   ))}
                 </ul>
               </div>
-            )) : (
-              <div className="text-xs text-gray-500 italic">
-                No search queries available. Search metrics will appear after running a search.
-              </div>
-            )}
+            ))}
           </div>
 
           {/* Explanation */}
