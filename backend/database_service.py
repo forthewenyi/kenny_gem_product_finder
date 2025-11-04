@@ -242,6 +242,20 @@ class DatabaseService:
             for char, products in sorted(characteristic_to_products.items(), key=lambda x: len(x[1]), reverse=True)
         ]
 
+        # Reconstruct real_search_metrics if present
+        from models import RealSearchMetrics
+        real_search_metrics = None
+        if cached_search.get("real_search_metrics"):
+            rsm = cached_search["real_search_metrics"]
+            real_search_metrics = RealSearchMetrics(
+                total_sources_analyzed=rsm.get("total_sources_analyzed", 0),
+                reddit_threads=rsm.get("reddit_threads", 0),
+                expert_reviews=rsm.get("expert_reviews", 0),
+                search_queries_executed=rsm.get("search_queries_executed", 0),
+                search_queries=rsm.get("search_queries", []),
+                unique_sources=rsm.get("unique_sources", 0)
+            )
+
         return SearchResponse(
             results=tier_results,
             search_metadata={
@@ -251,7 +265,8 @@ class DatabaseService:
                 "cache_date": cached_search.get("created_at")
             },
             processing_time_seconds=0.0,  # Cached result, instant
-            aggregated_characteristics=aggregated_characteristics  # Add aggregated characteristics
+            aggregated_characteristics=aggregated_characteristics,  # Add aggregated characteristics
+            real_search_metrics=real_search_metrics  # Add real_search_metrics from cache
         )
 
     async def cache_search_results(self, query: str, search_response: SearchResponse,
@@ -265,6 +280,19 @@ class DatabaseService:
         try:
             normalized_query = self.normalize_query(query)
 
+            # Serialize real_search_metrics if present
+            real_search_metrics_json = None
+            if search_response.real_search_metrics:
+                rsm = search_response.real_search_metrics
+                real_search_metrics_json = {
+                    "total_sources_analyzed": rsm.total_sources_analyzed,
+                    "reddit_threads": rsm.reddit_threads,
+                    "expert_reviews": rsm.expert_reviews,
+                    "search_queries_executed": rsm.search_queries_executed,
+                    "search_queries": rsm.search_queries,
+                    "unique_sources": rsm.unique_sources
+                }
+
             # Insert search query
             search_data = {
                 "original_query": query,
@@ -275,6 +303,7 @@ class DatabaseService:
                 "sources_searched": search_response.search_metadata.get("sources_searched", []),
                 "search_queries_used": search_response.search_metadata.get("search_queries_used", []),
                 "processing_time_seconds": search_response.processing_time_seconds,
+                "real_search_metrics": real_search_metrics_json,  # Add real_search_metrics
                 "access_count": 0  # Initialize access count for new cache entries
             }
 

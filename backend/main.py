@@ -317,7 +317,7 @@ async def search_products(query: SearchQuery):
 
     try:
         # Step 1: Check database cache first
-        if False:  # Caching temporarily disabled for ADK testing
+        if db_service:  # Caching enabled - checks Supabase cache
             print(f"🔍 Checking cache for query: '{query.query}'")
             cached_result = await db_service.get_cached_search(
                 query=query.query,
@@ -372,8 +372,8 @@ async def search_products(query: SearchQuery):
                 return cached_result
 
             print("✗ Cache miss. Performing fresh search...")
-
-        print("🔍 Cache disabled - performing fresh search...")
+        else:
+            print("🔍 Cache disabled - performing fresh search...")
 
         # Step 2: No cache hit - perform fresh search
         # Use ADK-powered multi-agent search

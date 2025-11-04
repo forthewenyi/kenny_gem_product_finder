@@ -179,7 +179,7 @@ This single search must get you: products, reviews, AND pricing all at once.
 For each product found, extract ALL of these fields:
 - name: Full product name
 - brand: Brand name
-- price: Numeric price in USD (e.g. 45.99). **CRITICAL: You MUST find the actual price** - search "{product name} price" or "{product name} buy" to find current pricing from retailers like Amazon, Walmart, or manufacturer websites. Do NOT include products if you cannot find a price.
+- price: Numeric price in USD (e.g. 45.99). **CRITICAL: You MUST provide a price for every product**
 - lifespan: Expected lifespan in years (e.g. 5, 10, or "10-15")
 - materials: Array of materials (e.g. ["cast iron", "stainless steel"])
 - key_features: Array of key features (e.g. ["dishwasher safe", "oven safe to 500°F"])
@@ -192,10 +192,11 @@ For each product found, extract ALL of these fields:
 - professional_reviews: Array of review site names (e.g. ["Wirecutter", "Serious Eats"])
 
 **IMPORTANT PRICING RULES**:
-- Extract prices from your ONE search result
-- If exact price not found, estimate: Budget tier ($15-50), Mid tier ($50-150), Premium tier ($150-400)
+- Extract exact prices from your search results when available
+- If exact price not found, you MUST estimate based on product tier: Budget ($15-50), Mid ($50-150), Premium ($150-400)
 - DO NOT make additional searches for pricing - work with what you have
-- Include 6-9 products minimum (you can work with incomplete data for UI testing)
+- ALWAYS include a price estimate for every product - never leave price as null or unknown
+- Include 6-9 products minimum
 
 Return ONLY a JSON with 6-9 products total:
 {

@@ -90,7 +90,7 @@ export default function SearchMetrics({
               Search Transparency {fromCache && <span className="text-[10px] text-gray-500 normal-case">(Cached)</span>}
             </h3>
             <p className="text-[11px] text-gray-600 mt-0.5">
-              Kenny generated <strong>{queriesGenerated}</strong> AI search queries, analyzed <strong>{totalSourcesAnalyzed.toLocaleString()}</strong> expert sources and user reviews, then found you the best {totalProductsDisplayed} {getProductLabel()}
+              Kenny generated <strong>{queriesGenerated}</strong> AI search queries, analyzed <strong>{(totalSourcesAnalyzed || 0).toLocaleString()}</strong> expert sources and user reviews, then found you the best {totalProductsDisplayed} {getProductLabel()}
             </p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function SearchMetrics({
             </div>
             <div className="bg-white p-3 border border-gray-200">
               <div className="text-gray-500 uppercase tracking-wide mb-1 text-[10px]">Reviews Analyzed</div>
-              <div className="text-2xl font-bold">{totalSourcesAnalyzed.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{(totalSourcesAnalyzed || 0).toLocaleString()}</div>
             </div>
             <div className="bg-white p-3 border border-gray-200">
               <div className="text-gray-500 uppercase tracking-wide mb-1 text-[10px]">Products Evaluated</div>
@@ -137,7 +137,7 @@ export default function SearchMetrics({
                     {getPhaseLabel(phase)}
                   </h5>
                   <span className="text-[10px] text-gray-500">
-                    {sourcesByPhase[phase.toLowerCase().replace(/ /g, '_')] || 0} sources found
+                    {sourcesByPhase[phase.toLowerCase().replace(/ /g, '_') as keyof typeof sourcesByPhase] || 0} sources found
                   </span>
                 </div>
                 <ul className="space-y-1">
