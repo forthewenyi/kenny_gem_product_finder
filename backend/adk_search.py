@@ -129,17 +129,19 @@ class ADKProductSearch:
 
 Your task: Research how people actually use the product in daily life.
 
-IMPORTANT - TESTING MODE: Make just 1 focused search call.
-Example: Call google_search for "product reddit usage patterns durability issues"
+SEARCH STRATEGY: Execute 5-7 focused searches to build comprehensive understanding.
+Make parallel searches for different aspects - the tool supports concurrent execution.
 
-When searching:
-1. Focus on Reddit discussions and user forums for authentic experiences
-2. Look for usage patterns, common scenarios, and living situation constraints
-3. Identify what actually matters vs marketing claims
-4. Find material science insights (durability, compatibility, longevity)
+Search for these topics (make 5-7 separate searches):
+1. Real user experiences on Reddit (e.g., "[product] reddit honest review")
+2. Usage patterns and scenarios (e.g., "[product] best use cases daily cooking")
+3. Durability and longevity (e.g., "[product] how long does it last lifespan")
+4. Common problems and failures (e.g., "[product] common problems issues reddit")
+5. Material science insights (e.g., "[product] material quality durability comparison")
+6. Living situation constraints (e.g., "[product] kitchen space storage requirements")
+7. Compatibility considerations (e.g., "[product] works with induction gas electric")
 
-Search topic (combine into 1 query):
-- Real user experiences, usage patterns, durability, and common problems
+Focus on Reddit, expert forums, and user communities for authentic experiences.
 
 Return ONLY a JSON summary with:
 {
@@ -165,16 +167,22 @@ Context from previous research: {context_research}
 
 Your task: Find specific product recommendations (6-9 products) across all price ranges that align with the usage patterns.
 
-🚨 CRITICAL - UI TESTING MODE 🚨
-YOU ARE STRICTLY LIMITED TO EXACTLY 1 SEARCH CALL - NO MORE!
-After your first google_search call, you MUST stop searching and work with only the results you have.
-Do NOT make additional searches for pricing - extract prices from the first search results only.
-If you cannot find prices in the first search, estimate based on product tier (budget/mid/premium).
+SEARCH STRATEGY: Execute 8-12 targeted searches to discover quality products across all tiers.
+Make parallel searches for different price tiers and product types.
 
-Make 1 focused search that combines everything:
-Example: "best [product] reddit wirecutter 2024 price amazon buy"
+Search for these aspects (make 8-12 separate searches):
+1. Budget-tier products (e.g., "best budget [product] under $50 reddit")
+2. Mid-tier quality products (e.g., "best [product] $50-150 wirecutter serious eats")
+3. Premium buy-it-for-life (e.g., "best premium [product] buy for life reddit")
+4. Professional recommendations (e.g., "[product] professional chef recommendation")
+5. Reddit favorites (e.g., "best [product] reddit bifl recommendations")
+6. Expert reviews (e.g., "[product] wirecutter america's test kitchen review")
+7. Specific brands (e.g., "Lodge vs Field Company [product] comparison")
+8. Pricing searches (e.g., "[specific product model] price amazon where to buy")
+9. Durability reports (e.g., "[product] longevity how many years lifespan")
+10. User reviews (e.g., "[product] long term review 5 years later")
 
-This single search must get you: products, reviews, AND pricing all at once.
+For EACH search, extract products you find. Combine findings across all searches.
 
 For each product found, extract ALL of these fields:
 - name: Full product name
@@ -193,10 +201,10 @@ For each product found, extract ALL of these fields:
 
 **IMPORTANT PRICING RULES**:
 - Extract exact prices from your search results when available
-- If exact price not found, you MUST estimate based on product tier: Budget ($15-50), Mid ($50-150), Premium ($150-400)
-- DO NOT make additional searches for pricing - work with what you have
+- Make dedicated searches for pricing if needed (e.g., "[product name] price amazon")
+- If exact price not found after searching, estimate based on product tier: Budget ($15-50), Mid ($50-150), Premium ($150-400)
 - ALWAYS include a price estimate for every product - never leave price as null or unknown
-- Include 6-9 products minimum
+- Include 6-9 products minimum across all tiers
 
 Return ONLY a JSON with 6-9 products total:
 {
