@@ -18,28 +18,31 @@ Context Discovery Agent → Product Finder Agent → Synthesis Agent
 
 ### Key Features
 
-- ✅ **Parallel Search Execution**: Agents make 4-8 Google searches simultaneously (3-7x faster)
-- ✅ **Google Custom Search API**: Reliable, production-ready search (100 free queries/day)
+- ✅ **Parallel Search Execution**: Agents make 13-19 Google searches per query (5-7 for context, 8-12 for products)
+- ✅ **Google Custom Search API**: Reliable, production-ready search (100 free queries/day, ~5-7 unique searches)
 - ✅ **Database Caching**: Supabase PostgreSQL for cached results
 - ✅ **Personalized Search**: User characteristics passed to agents for tailored recommendations
 - ✅ **Dynamic Characteristics**: Backend discovers what matters for each product (no hard-coding)
 - ✅ **Comprehensive Product Data**: Materials, durability, practical metrics, trade-offs, sources
 
-### Recent Improvements (Session Nov 3, 2024)
+### Recent Improvements
 
-**Backend:**
+**Session Nov 4, 2024:**
+- Removed testing mode from ADK agents for production-ready search
+- Context Discovery Agent: 1 → 5-7 focused searches (usage, durability, materials)
+- Product Finder Agent: 1 → 8-12 targeted searches (budget/mid/premium tiers)
+- Total search capacity: 13-19 Google searches per query
+- Implemented comprehensive cache clearing utilities
+- Added parallel search execution across all research phases
+
+**Session Nov 3, 2024:**
 - Migrated from coordinator agent to SequentialAgent with state management (`output_key`)
 - Added async Google Custom Search API support via `httpx`
-- Implemented parallel search hints in agent prompts (4 searches in 0.6s!)
+- Implemented parallel search hints in agent prompts
 - Added timing profiling for performance monitoring
 - All product fields now returned: materials, characteristics, key_features, why_its_a_gem, best_for, trade_offs, web_sources, purchase_links, professional_reviews
-
-**Frontend:**
-- Removed 100+ lines of hard-coded product-specific filter logic
-- Simplified client-side filtering (removed household_size → skillet size mapping)
-- Now trusts backend personalization instead of duplicate filtering
-- Made productConfig optional (backend dynamically discovers characteristics)
-- Fixed TypeScript errors and aligned with backend data structure
+- Frontend: Removed 100+ lines of hard-coded product-specific filter logic
+- Simplified client-side filtering and made productConfig optional
 
 ## Setup
 
@@ -184,16 +187,27 @@ backend/
 
 ### 1. Context Discovery Agent
 Researches how people actually use the product:
-- **Parallel searches**: "product reddit usage patterns", "product durability issues", "product material science"
+- **Search count**: 5-7 focused searches executed in parallel
+- **Topics**: Real user experiences (Reddit), usage patterns, durability/longevity, common problems/failures, material science insights, living constraints, compatibility
+- **Examples**:
+  - "frying pan reddit honest review"
+  - "frying pan how long does it last lifespan"
+  - "frying pan material quality durability comparison"
 - **Focus**: Real user experiences, material properties, common problems
 - **Output**: `context_research` state passed to next agent
 
 ### 2. Product Finder Agent
 Finds specific products based on context:
+- **Search count**: 8-12 targeted searches executed in parallel
+- **Topics**: Budget-tier products, mid-tier quality, premium buy-it-for-life, professional recommendations, Reddit BIFL favorites, expert reviews, brand comparisons, pricing, durability reports, long-term reviews
+- **Examples**:
+  - "best budget frying pan under $50 reddit"
+  - "best frying pan $50-150 wirecutter serious eats"
+  - "best premium frying pan buy for life reddit"
+  - "Lodge vs Field Company frying pan comparison"
 - **Reads**: `context_research` from previous agent
-- **Parallel searches**: "best product reddit 2024", "product wirecutter review", "brand model durability"
 - **Extracts**: Full product data with all fields
-- **Output**: `product_findings` state with 6-10 products
+- **Output**: `product_findings` state with 6-9 products across all tiers
 
 ### 3. Synthesis Agent
 Organizes products into tiers:
@@ -203,16 +217,20 @@ Organizes products into tiers:
 
 ### Parallel Execution
 
-Agents explicitly hint to make parallel tool calls:
+Agents execute multiple searches concurrently for maximum speed:
+- **Context Agent**: 5-7 searches run in parallel (~8-15 seconds)
+- **Product Finder**: 8-12 searches run in parallel (~20-40 seconds)
+- **Total**: 13-19 searches executed per query
+
+Each agent receives explicit search strategy instructions:
 ```python
 instruction="""
-IMPORTANT - PARALLEL EXECUTION: Call google_search multiple times IN PARALLEL.
-Make 4-6 search calls simultaneously, not one-by-one.
-ALL AT ONCE in the same response.
+SEARCH STRATEGY: Execute 5-7 focused searches to build comprehensive understanding.
+Make parallel searches for different aspects - the tool supports concurrent execution.
 """
 ```
 
-Result: **4 searches in 0.6s** (vs 2.0s sequential) = 3x faster!
+Result: **Comprehensive product research in 30-60 seconds** with parallel execution!
 
 ## Testing
 
@@ -235,11 +253,12 @@ The frontend at http://localhost:3000 will automatically use the backend API.
 
 ## Performance
 
-- **Context Discovery**: ~17s (4 parallel searches)
-- **Product Finder**: ~82s (multiple search rounds with 5-8 searches each)
-- **Synthesis**: ~0.5s (no searches, just analysis)
-- **Total**: ~99s for comprehensive research
-- **With Cache**: <1s for repeated queries
+- **Context Discovery**: ~8-15s (5-7 parallel searches for usage patterns, durability, materials)
+- **Product Finder**: ~20-40s (8-12 parallel searches across all price tiers)
+- **Synthesis**: ~0.5s (no searches, just analysis and tier organization)
+- **Total**: ~30-60s for comprehensive research with 13-19 searches
+- **With Cache**: <1s for repeated queries (cache hit rate improves over time)
+- **API Usage**: 13-19 searches per unique query = ~5-7 unique searches per day with free tier (100/day limit)
 
 ## Environment Variables
 
@@ -262,14 +281,21 @@ The frontend at http://localhost:3000 will automatically use the backend API.
 - Can be safely ignored
 
 **Slow response times**
-- First search: ~99s (comprehensive research with 10+ Google searches)
+- First search: ~30-60s (comprehensive research with 13-19 Google searches)
 - Cached search: <1s
-- ADK agents are thorough - they research multiple aspects in parallel
+- ADK agents are thorough - Context Agent (5-7 searches) + Product Finder (8-12 searches)
+- This is normal for production-quality research across all price tiers
+
+**Network errors or search failures**
+- Ensure backend is running: `python -m uvicorn main:app --reload`
+- Check API keys are set in `.env` file
+- Verify Google Custom Search API has remaining quota (100 free/day)
+- Clear cache if needed: `python clear_all_cache.py`
 
 **No products returned**
 - Check that agents have access to google_search tool
 - Verify Google Search API is working (check logs for search results)
-- Try increasing num_results in google_search calls
+- Testing mode has been removed - agents should make 13-19 searches per query
 
 ## Migration Notes
 
