@@ -16,7 +16,7 @@ export interface WebSource {
   relevance_score?: number | null
 }
 
-export interface DurabilityData {
+export interface QualityData {
   score: number // 0-100
   average_lifespan_years: number
   still_working_after_5years_percent: number // 0-100
@@ -49,7 +49,7 @@ export interface Product {
   tier: TierLevel
   category: string
   value_metrics: ValueMetrics
-  durability_data?: DurabilityData | null
+  quality_data?: QualityData | null
   practical_metrics?: PracticalMetrics | null
   characteristics: string[] // NEW: Normalized characteristics for filtering
   key_features: string[]
@@ -68,7 +68,7 @@ export interface Product {
 export interface ProductTier {
   tier: TierLevel
   products: Product[]
-  durability?: DurabilityData | null
+  quality?: QualityData | null
 }
 
 export interface AlternativeSolution {

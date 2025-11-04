@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 const loadingMessages = [
   "Searching Reddit, reviews, and kitchen forums...",
   "Analyzing products found so far...",
-  "Calculating cost-per-year and durability scores...",
+  "Calculating cost-per-year and quality scores...",
   "Finding hidden gems from niche manufacturers..."
 ]
 

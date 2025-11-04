@@ -1,14 +1,14 @@
 'use client'
 
-import { DurabilityData } from '@/types'
+import { QualityData } from '@/types'
 
-interface DurabilityScoreProps {
-  data: DurabilityData
+interface QualityScoreProps {
+  data: QualityData
   showBreakdown?: boolean
   size?: 'sm' | 'md' | 'lg'
 }
 
-export default function DurabilityScore({ data, showBreakdown = false, size = 'md' }: DurabilityScoreProps) {
+export default function QualityScore({ data, showBreakdown = false, size = 'md' }: QualityScoreProps) {
   // Get letter grade based on score
   const getGrade = (score: number): string => {
     if (score >= 90) return 'A+'
@@ -75,7 +75,7 @@ export default function DurabilityScore({ data, showBreakdown = false, size = 'm
       <div className={`rounded-xl border-2 p-6 ${getScoreColor(data.score)}`}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-lg font-bold">Durability Score</h3>
+            <h3 className="text-lg font-bold">Quality Score</h3>
             <p className="text-sm opacity-75">Based on {data.total_user_reports} user reports</p>
           </div>
           <div className="text-right">

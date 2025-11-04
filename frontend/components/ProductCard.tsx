@@ -38,7 +38,7 @@ export default function ProductCard({
     }
   }
 
-  // Generate star rating from durability score
+  // Generate star rating from quality score
   const getStars = (score: number) => {
     const fullStars = Math.floor((score / 100) * 5)
     const hasHalfStar = (score / 100) * 5 - fullStars >= 0.5
@@ -49,7 +49,7 @@ export default function ProductCard({
     return stars
   }
 
-  const durabilityScore = product.durability_data?.score || 0
+  const qualityScore = product.quality_data?.score || 0
 
   return (
     <div
@@ -130,10 +130,10 @@ export default function ProductCard({
           <span className="text-[#79786c] text-[10px]">• ${product.value_metrics.cost_per_year}/year</span>
         </div>
 
-        {/* Durability */}
+        {/* Quality */}
         <div className="flex items-center gap-1.5 text-[10px] text-[#79786c]">
-          <span className="text-[#fbbf24] text-[11px]">{getStars(durabilityScore)}</span>
-          <span>Durability: <span className="text-black font-semibold">{(durabilityScore / 10).toFixed(1)}</span></span>
+          <span className="text-[#fbbf24] text-[11px]">{getStars(qualityScore)}</span>
+          <span>Quality: <span className="text-black font-semibold">{(qualityScore / 10).toFixed(1)}</span></span>
         </div>
 
         {/* Tier Badge */}

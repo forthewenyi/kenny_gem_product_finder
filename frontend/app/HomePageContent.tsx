@@ -468,23 +468,23 @@ export default function HomePageContent() {
                 </div>
               </div>
 
-              {/* Durability Score Comparison */}
+              {/* Quality Score Comparison */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Durability</h3>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Quality</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {compareProducts.map((product, idx) => (
                     <div key={idx}>
-                      {product.durability_data ? (
+                      {product.quality_data ? (
                         <div className="space-y-3">
                           {/* Main Score */}
                           <div className="text-center pb-3 border-b">
                             <div className="text-3xl font-bold mb-1">
-                              {product.durability_data.score}/100
+                              {product.quality_data.score}/100
                             </div>
                             <div className="text-xs text-gray-500">
-                              {product.durability_data.score >= 90 ? 'Excellent' :
-                               product.durability_data.score >= 80 ? 'Very Good' :
-                               product.durability_data.score >= 70 ? 'Good' : 'Fair'}
+                              {product.quality_data.score >= 90 ? 'Excellent' :
+                               product.quality_data.score >= 80 ? 'Very Good' :
+                               product.quality_data.score >= 70 ? 'Good' : 'Fair'}
                             </div>
                           </div>
 
@@ -492,46 +492,46 @@ export default function HomePageContent() {
                           <div className="space-y-2 text-xs">
                             <div className="flex justify-between">
                               <span className="text-gray-500">Avg Lifespan:</span>
-                              <span className="font-medium">{product.durability_data.average_lifespan_years} years</span>
+                              <span className="font-medium">{product.quality_data.average_lifespan_years} years</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-500">Working after 5y:</span>
-                              <span className="font-medium">{product.durability_data.still_working_after_5years_percent}%</span>
+                              <span className="font-medium">{product.quality_data.still_working_after_5years_percent}%</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-500">User Reports:</span>
-                              <span className="font-medium">{product.durability_data.total_user_reports}</span>
+                              <span className="font-medium">{product.quality_data.total_user_reports}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-500">Repairability:</span>
-                              <span className="font-medium">{product.durability_data.repairability_score}/100</span>
+                              <span className="font-medium">{product.quality_data.repairability_score}/100</span>
                             </div>
                           </div>
 
                           {/* Material Quality Indicators */}
-                          {product.durability_data.material_quality_indicators &&
-                           product.durability_data.material_quality_indicators.length > 0 && (
+                          {product.quality_data.material_quality_indicators &&
+                           product.quality_data.material_quality_indicators.length > 0 && (
                             <div className="pt-2 border-t">
                               <div className="text-xs text-gray-500 mb-1">Quality:</div>
-                              {product.durability_data.material_quality_indicators.map((indicator, i) => (
+                              {product.quality_data.material_quality_indicators.map((indicator, i) => (
                                 <div key={i} className="text-xs">• {indicator}</div>
                               ))}
                             </div>
                           )}
 
                           {/* Common Failure Points */}
-                          {product.durability_data.common_failure_points &&
-                           product.durability_data.common_failure_points.length > 0 && (
+                          {product.quality_data.common_failure_points &&
+                           product.quality_data.common_failure_points.length > 0 && (
                             <div className="pt-2 border-t">
                               <div className="text-xs text-gray-500 mb-1">Failure Points:</div>
-                              {product.durability_data.common_failure_points.map((point, i) => (
+                              {product.quality_data.common_failure_points.map((point, i) => (
                                 <div key={i} className="text-xs text-red-600">• {point}</div>
                               ))}
                             </div>
                           )}
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-400">No durability data</p>
+                        <p className="text-xs text-gray-400">No quality data</p>
                       )}
                     </div>
                   ))}
@@ -654,9 +654,9 @@ export default function HomePageContent() {
                           ? `${product.value_metrics.expected_lifespan_years} years`
                           : 'N/A'}
                       </div>
-                      {product.durability_data && product.durability_data.total_user_reports > 0 && (
+                      {product.quality_data && product.quality_data.total_user_reports > 0 && (
                         <div className="text-[10px] text-gray-500">
-                          Based on {product.durability_data.total_user_reports} user reports
+                          Based on {product.quality_data.total_user_reports} user reports
                         </div>
                       )}
                     </div>
@@ -790,9 +790,9 @@ export default function HomePageContent() {
                               Sources analyzed:
                             </div>
                             <div className="space-y-1">
-                              {/* Prioritize durability data sources, fall back to web sources */}
-                              {(product.durability_data?.data_sources && product.durability_data.data_sources.length > 0
-                                ? product.durability_data.data_sources
+                              {/* Prioritize quality data sources, fall back to web sources */}
+                              {(product.quality_data?.data_sources && product.quality_data.data_sources.length > 0
+                                ? product.quality_data.data_sources
                                 : product.web_sources || []
                               ).slice(0, 3).map((source, i) => {
                                 try {
