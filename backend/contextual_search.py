@@ -132,18 +132,18 @@ Make queries specific and actionable. Include "reddit" where appropriate for rea
 
         queries = json.loads(response_text.strip())
 
-        # Flatten and limit to 11 total queries (2+2+2+2+3) for cost/speed balance
+        # Flatten and limit to 35 total queries (7+7+7+7+7) for balanced quality with good coverage
         all_queries = []
         for phase, phase_queries in queries.items():
             all_queries.extend(phase_queries)
 
-        # Return limited set (2-3 from each phase, 3 for value_synthesis for durability validation)
+        # Return limited set (7 from each phase for comprehensive research)
         limited_queries = {
-            "context_discovery": queries.get("context_discovery", [])[:2],
-            "material_science": queries.get("material_science", [])[:2],
-            "product_identification": queries.get("product_identification", [])[:2],
-            "frustration_research": queries.get("frustration_research", [])[:2],
-            "value_synthesis": queries.get("value_synthesis", [])[:3]  # 3 queries for durability validation
+            "context_discovery": queries.get("context_discovery", [])[:7],
+            "material_science": queries.get("material_science", [])[:7],
+            "product_identification": queries.get("product_identification", [])[:7],
+            "frustration_research": queries.get("frustration_research", [])[:7],
+            "value_synthesis": queries.get("value_synthesis", [])[:7]
         }
 
         return limited_queries
