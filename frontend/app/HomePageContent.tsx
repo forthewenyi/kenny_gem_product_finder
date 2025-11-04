@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { searchProducts } from '@/lib/api'
 import type { SearchResponse, Product } from '@/types'
+import { useSearchWebSocket } from '@/hooks/useSearchWebSocket'
 
 import TopBanner from '@/components/TopBanner'
 import Header from '@/components/Header'
@@ -20,12 +21,23 @@ export default function HomePageContent() {
   const [compareProducts, setCompareProducts] = useState<Product[]>([])
   const [currentQuery, setCurrentQuery] = useState<string>('')
   const [currentCategory, setCurrentCategory] = useState<string>('all')
-  const [selectedCharacteristics, setSelectedCharacteristics] = useState<string[]>([])
-  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([])
-  const [selectedTier, setSelectedTier] = useState<string | undefined>(undefined)
 
-  // Simple state for Value Preference - only passed to backend when Search is clicked
-  const [valuePreference, setValuePreference] = useState<'save_now' | 'best_value' | 'buy_for_life' | undefined>(undefined)
+  // Filter states
+  const [selectedCharacteristics, setSelectedCharacteristics] = useState<string[]>([])
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([])
+  const [selectedTiers, setSelectedTiers] = useState<string[]>([])
+  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([])
+  const [maxPrice, setMaxPrice] = useState<number | undefined>(undefined)
+  const [maxCostPerYear, setMaxCostPerYear] = useState<number | undefined>(undefined)
+
+  // WebSocket hook for real-time search progress
+  const {
+    isConnected: wsConnected,
+    progressMessage,
+    currentAgent,
+    totalSearches,
+    sendSearch: sendWebSocketSearch,
+  } = useSearchWebSocket()
 
   const searchMutation = useMutation({
     mutationFn: ({ query, maxPrice, context }: { query: string; maxPrice?: number; context?: Record<string, string> }) =>
@@ -40,16 +52,21 @@ export default function HomePageContent() {
     },
   })
 
-  const handleSearch = (query: string, maxPrice?: number) => {
+  const handleSearch = (query: string, maxPriceParam?: number) => {
     setCurrentQuery(query)
-    // Reset product-specific filters on new search
+    // Reset all filters on new search
     setSelectedCharacteristics([])
+    setSelectedBrands([])
+    setSelectedTiers([])
     setSelectedMaterials([])
-    setSelectedTier(undefined)
+    setMaxPrice(undefined)
+    setMaxCostPerYear(undefined)
 
-    // Build context with current value preference
-    const context = valuePreference ? { value_preference: valuePreference } : undefined
-    searchMutation.mutate({ query, maxPrice, context })
+    // Start WebSocket for real-time progress updates
+    sendWebSocketSearch(query, maxPriceParam, undefined, undefined)
+
+    // Also call regular API for actual results
+    searchMutation.mutate({ query, maxPrice: maxPriceParam })
   }
 
   const handleNavigate = (category: string) => {
@@ -67,28 +84,6 @@ export default function HomePageContent() {
 
   const handleRemoveCharacteristic = (characteristic: string) => {
     setSelectedCharacteristics(prev => prev.filter(c => c !== characteristic))
-  }
-
-  const handleRemoveMaterial = (material: string) => {
-    setSelectedMaterials(prev => prev.filter(m => m !== material))
-  }
-
-  const handleRemoveTier = () => {
-    setSelectedTier(undefined)
-  }
-
-  const handleMaterialClick = (material: string) => {
-    setSelectedMaterials(prev =>
-      prev.includes(material) ? prev.filter(m => m !== material) : [...prev, material]
-    )
-  }
-
-  const handleValuePreferenceChange = (value: 'save_now' | 'best_value' | 'buy_for_life') => {
-    setValuePreference(value)
-  }
-
-  const clearValuePreference = () => {
-    setValuePreference(undefined)
   }
 
   const toggleCompare = (product: Product) => {
@@ -119,10 +114,9 @@ export default function HomePageContent() {
       ]
     : []
 
-  // Client-side filtering (backend already personalized results based on characteristics)
-  // We only apply simple UI-driven filters here: characteristics, materials, tier
+  // Client-side filtering with all filter types
   const filteredProducts = allProducts.filter(product => {
-    // Filter by selected characteristics (from aggregated_characteristics)
+    // Filter by characteristics
     if (selectedCharacteristics.length > 0) {
       const characteristics = product.characteristics || []
       const hasCharacteristic = selectedCharacteristics.some(selectedChar =>
@@ -131,7 +125,17 @@ export default function HomePageContent() {
       if (!hasCharacteristic) return false
     }
 
-    // Filter by selected materials
+    // Filter by brands
+    if (selectedBrands.length > 0) {
+      if (!selectedBrands.includes(product.brand)) return false
+    }
+
+    // Filter by tiers
+    if (selectedTiers.length > 0) {
+      if (!selectedTiers.includes(product.tier)) return false
+    }
+
+    // Filter by materials
     if (selectedMaterials.length > 0) {
       const materials = product.materials || []
       const hasMaterial = selectedMaterials.some(selectedMat =>
@@ -140,9 +144,14 @@ export default function HomePageContent() {
       if (!hasMaterial) return false
     }
 
-    // Filter by selected tier
-    if (selectedTier) {
-      if (product.tier !== selectedTier.toLowerCase()) return false
+    // Filter by max price
+    if (maxPrice !== undefined) {
+      if (product.value_metrics.upfront_price > maxPrice) return false
+    }
+
+    // Filter by max cost per year
+    if (maxCostPerYear !== undefined) {
+      if (product.value_metrics.cost_per_year > maxCostPerYear) return false
     }
 
     return true
@@ -176,9 +185,10 @@ export default function HomePageContent() {
         <SearchInterface
           onSearch={handleSearch}
           isLoading={searchMutation.isPending}
-          valuePreference={valuePreference}
-          onValuePreferenceChange={handleValuePreferenceChange}
-          onClearValuePreference={clearValuePreference}
+          wsConnected={wsConnected}
+          progressMessage={progressMessage}
+          currentAgent={currentAgent}
+          totalSearches={totalSearches}
         />
       </div>
 
@@ -265,12 +275,51 @@ export default function HomePageContent() {
 
             {/* Result Filter Bar - Only shows when filters are active */}
             <FilterBar
+              products={allProducts}
               selectedCharacteristics={selectedCharacteristics}
-              onRemoveCharacteristic={handleRemoveCharacteristic}
+              onToggleCharacteristic={(char) => {
+                if (selectedCharacteristics.includes(char)) {
+                  setSelectedCharacteristics(selectedCharacteristics.filter(c => c !== char))
+                } else {
+                  setSelectedCharacteristics([...selectedCharacteristics, char])
+                }
+              }}
+              selectedBrands={selectedBrands}
+              onToggleBrand={(brand) => {
+                if (selectedBrands.includes(brand)) {
+                  setSelectedBrands(selectedBrands.filter(b => b !== brand))
+                } else {
+                  setSelectedBrands([...selectedBrands, brand])
+                }
+              }}
+              selectedTiers={selectedTiers}
+              onToggleTier={(tier) => {
+                if (selectedTiers.includes(tier)) {
+                  setSelectedTiers(selectedTiers.filter(t => t !== tier))
+                } else {
+                  setSelectedTiers([...selectedTiers, tier])
+                }
+              }}
               selectedMaterials={selectedMaterials}
-              onRemoveMaterial={handleRemoveMaterial}
-              selectedTier={selectedTier}
-              onRemoveTier={handleRemoveTier}
+              onToggleMaterial={(material) => {
+                if (selectedMaterials.includes(material)) {
+                  setSelectedMaterials(selectedMaterials.filter(m => m !== material))
+                } else {
+                  setSelectedMaterials([...selectedMaterials, material])
+                }
+              }}
+              maxPrice={maxPrice}
+              onMaxPriceChange={setMaxPrice}
+              maxCostPerYear={maxCostPerYear}
+              onMaxCostPerYearChange={setMaxCostPerYear}
+              onClearAll={() => {
+                setSelectedCharacteristics([])
+                setSelectedBrands([])
+                setSelectedTiers([])
+                setSelectedMaterials([])
+                setMaxPrice(undefined)
+                setMaxCostPerYear(undefined)
+              }}
             />
 
             {/* Product Grid */}

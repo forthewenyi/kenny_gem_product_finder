@@ -20,11 +20,12 @@ from models import (
     TierResults,
     Product,
     TierLevel,
-    WebSource
+    WebSource,
+    QualityData
 )
 from adk_search import get_adk_search  # ADK-powered multi-agent search with Google Agent Development Kit
 from database_service import DatabaseService
-from durability_scorer import get_durability_scorer, DurabilityScore as DurabilityScoreCalc
+from quality_scorer import get_quality_scorer, QualityScore as QualityScoreCalc
 from characteristic_generator import get_characteristic_generator
 from popular_search_service import get_popular_search_service
 
@@ -602,16 +603,29 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
         for product_data in products_data:
             try:
                 # Calculate value metrics (convert to float in case AI returns strings)
-                price = product_data.get("price", 0)
-                lifespan = product_data.get("lifespan", 1)
+                price = product_data.get("price")
+                lifespan = product_data.get("lifespan")
 
                 print(f"DEBUG: Parsing product '{product_data.get('name', 'unknown')}'")
                 print(f"  price type: {type(price)}, value: {price}")
                 print(f"  lifespan type: {type(lifespan)}, value: {lifespan}")
 
+                # Handle None values and convert to defaults
+                if price is None or price == "" or (isinstance(price, str) and price.lower() == "unknown"):
+                    print(f"  ⚠️  Price is None/empty/unknown, skipping product '{product_data.get('name', 'unknown')}'")
+                    continue  # Skip products without price data
+
+                if lifespan is None or lifespan == "":
+                    lifespan = "5"  # Default to 5 years if no lifespan provided
+
                 # Convert to float if they're strings
                 if isinstance(price, str):
-                    price = float(price.replace("$", "").replace(",", ""))
+                    # Remove $ and commas, and extract first number if multiple
+                    price_clean = price.replace("$", "").replace(",", "").strip()
+                    # Handle cases like "210 (average)" - extract just the number
+                    if " " in price_clean:
+                        price_clean = price_clean.split()[0]
+                    price = float(price_clean)
 
                 # Parse lifespan (handles ranges like "2-5 years")
                 lifespan = parse_lifespan_to_years(lifespan)
@@ -652,14 +666,14 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                 else:
                     trade_offs = trade_offs_raw
 
-                # Import DurabilityData model
-                from models import DurabilityData
+                # Import QualityData model
+                from models import QualityData
 
-                # Check if agent has already extracted durability data
-                if 'durability_data_extracted' in product_data:
-                    # Use agent-extracted durability data (preferred)
-                    extracted = product_data['durability_data_extracted']
-                    durability_data = DurabilityData(
+                # Check if agent has already extracted quality data
+                if 'quality_data_extracted' in product_data:
+                    # Use agent-extracted quality data (preferred)
+                    extracted = product_data['quality_data_extracted']
+                    quality_data = QualityData(
                         score=extracted.get('score', 75),
                         average_lifespan_years=float(extracted.get('average_lifespan_years', value_metrics.expected_lifespan_years)),
                         still_working_after_5years_percent=extracted.get('still_working_after_5years_percent', 75),
@@ -670,9 +684,9 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                         data_sources=extracted.get('data_sources', [])
                     )
                 else:
-                    # Fallback: Calculate durability score using durability_scorer
-                    durability_scorer = get_durability_scorer()
-                    durability_calc = durability_scorer.calculate_durability_score({
+                    # Fallback: Calculate quality score using quality_scorer
+                    quality_scorer = get_quality_scorer()
+                    quality_calc = quality_scorer.calculate_quality_score({
                         "expected_lifespan_years": lifespan,  # Use parsed numeric lifespan
                         "failure_percentage": product_data.get("failure_percentage"),
                         "reddit_mentions": product_data.get("reddit_mentions"),
@@ -685,19 +699,19 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
 
                     # Extract material quality indicators
                     material_indicators = [
-                        mat.get("material", "") for mat in durability_calc.material_data.get("materials", [])
+                        mat.get("material", "") for mat in quality_calc.material_data.get("materials", [])
                     ]
 
                     # Build data sources list
                     data_sources = ["AI-analyzed Reddit discussions", "Product review aggregation"]
 
-                    durability_data = DurabilityData(
-                        score=durability_calc.total,
-                        average_lifespan_years=float(durability_calc.longevity_data.get("expected_years", value_metrics.expected_lifespan_years)),
-                        still_working_after_5years_percent=int((durability_calc.failure_rate_score / 25) * 100),
-                        total_user_reports=durability_calc.failure_data.get("reddit_mentions", 0) or 0,
+                    quality_data = QualityData(
+                        score=quality_calc.total,
+                        average_lifespan_years=float(quality_calc.longevity_data.get("expected_years", value_metrics.expected_lifespan_years)),
+                        still_working_after_5years_percent=int((quality_calc.failure_rate_score / 25) * 100),
+                        total_user_reports=quality_calc.failure_data.get("reddit_mentions", 0) or 0,
                         common_failure_points=[],  # Will be populated from AI analysis in future
-                        repairability_score=int((durability_calc.repairability_score / 20) * 100),
+                        repairability_score=int((quality_calc.repairability_score / 20) * 100),
                         material_quality_indicators=material_indicators,
                         data_sources=data_sources
                     )
@@ -789,7 +803,7 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                     tier=TierLevel(product_data.get("tier", "better")),
                     category=product_data.get("category", "kitchen product"),
                     value_metrics=value_metrics,
-                    durability_data=durability_data,
+                    quality_data=quality_data,
                     practical_metrics=practical_metrics,
                     characteristics=characteristics,
                     key_features=key_features,

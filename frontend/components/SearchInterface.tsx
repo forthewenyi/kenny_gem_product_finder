@@ -1,23 +1,24 @@
 'use client'
 
 import { useState } from 'react'
-import ValuePreferenceDropdown from './ValuePreferenceDropdown'
 
 interface SearchInterfaceProps {
   onSearch: (query: string, maxPrice?: number) => void
   isLoading: boolean
-  // Search input filters (trigger new searches only when Search button clicked)
-  valuePreference?: 'save_now' | 'best_value' | 'buy_for_life'
-  onValuePreferenceChange?: (value: 'save_now' | 'best_value' | 'buy_for_life') => void
-  onClearValuePreference?: () => void
+  // WebSocket progress props
+  wsConnected?: boolean
+  progressMessage?: string
+  currentAgent?: string
+  totalSearches?: number
 }
 
 export default function SearchInterface({
   onSearch,
   isLoading,
-  valuePreference,
-  onValuePreferenceChange,
-  onClearValuePreference
+  wsConnected,
+  progressMessage,
+  currentAgent,
+  totalSearches
 }: SearchInterfaceProps) {
   const [query, setQuery] = useState('')
 
@@ -57,18 +58,6 @@ export default function SearchInterface({
               aria-describedby="search-helper-text"
             />
           </div>
-
-          {/* Search Input Filters (only passed to backend when Search button clicked) */}
-          {/* VALUE PREFERENCE Dropdown */}
-          {onValuePreferenceChange && onClearValuePreference && (
-            <div className={isLoading ? 'opacity-50 pointer-events-none' : ''}>
-              <ValuePreferenceDropdown
-                value={valuePreference}
-                onChange={onValuePreferenceChange}
-                onClear={onClearValuePreference}
-              />
-            </div>
-          )}
         </div>
       </form>
 
@@ -77,7 +66,19 @@ export default function SearchInterface({
         {isLoading ? (
           <span className="flex items-center gap-2">
             <span className="inline-block animate-swing-pickaxe text-2xl">⛏️</span>
-            <span>Kenny is digging... Analyzing Reddit, expert reviews, and user reports (20-30 seconds for thorough search)</span>
+            <span>
+              {wsConnected && progressMessage ? (
+                <>
+                  {progressMessage}
+                  {currentAgent && <span className="ml-2 text-blue-600">({currentAgent})</span>}
+                  {totalSearches && totalSearches > 0 && (
+                    <span className="ml-2 text-green-600">• {totalSearches} searches executed</span>
+                  )}
+                </>
+              ) : (
+                'Kenny is digging... Analyzing Reddit, expert reviews, and user reports (20-30 seconds for thorough search)'
+              )}
+            </span>
           </span>
         ) : (
           '💡 Search to see Kenny\'s buying guidance • Use Value Preference filter to personalize results'

@@ -47,9 +47,9 @@ class WebSource(BaseModel):
     relevance_score: Optional[float] = None
 
 
-class DurabilityData(BaseModel):
-    """Durability data from user reports and research"""
-    score: int = Field(..., ge=0, le=100, description="Overall durability score (0-100)")
+class QualityData(BaseModel):
+    """Quality data from user reports and research"""
+    score: int = Field(..., ge=0, le=100, description="Overall quality score (0-100)")
     average_lifespan_years: float = Field(..., description="Average lifespan based on user reports")
     still_working_after_5years_percent: int = Field(..., ge=0, le=100, description="% still working after 5 years")
     total_user_reports: int = Field(default=0, description="Number of user reports aggregated")
@@ -108,8 +108,8 @@ class Product(BaseModel):
     # Value metrics (most important!)
     value_metrics: ValueMetrics
 
-    # Durability data (NEW!)
-    durability_data: Optional[DurabilityData] = Field(None, description="Durability data from user reports and research")
+    # Quality data (NEW!)
+    quality_data: Optional[QualityData] = Field(None, description="Quality data from user reports and research")
 
     # Practical day-to-day metrics (NEW!)
     practical_metrics: Optional[PracticalMetrics] = Field(None, description="Practical usage metrics: cleaning, setup, weight, etc.")
@@ -140,10 +140,10 @@ class Product(BaseModel):
 
 
 class ProductTier(BaseModel):
-    """Product tier with aggregated products and durability data"""
+    """Product tier with aggregated products and quality data"""
     tier: TierLevel
     products: List[Product] = Field(default_factory=list)
-    durability: Optional[DurabilityData] = Field(None, description="Aggregate durability data for this tier")
+    quality: Optional[QualityData] = Field(None, description="Aggregate quality data for this tier")
 
 
 class SearchQuery(BaseModel):

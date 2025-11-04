@@ -124,7 +124,7 @@ class DatabaseService:
 
     def _transform_cached_search(self, cached_search: Dict[str, Any]) -> SearchResponse:
         """Transform cached database result into SearchResponse"""
-        from models import ValueMetrics, WebSource, TierResults, DurabilityData, PracticalMetrics
+        from models import ValueMetrics, WebSource, TierResults, QualityData, PracticalMetrics
 
         # Group products by tier
         good_products = []
@@ -143,11 +143,11 @@ class DatabaseService:
                 cost_per_day=float(product_data.get("cost_per_day", 0))
             )
 
-            # Reconstruct durability_data if present
-            durability_data = None
-            if product_data.get("durability_data"):
-                dd = product_data["durability_data"]
-                durability_data = DurabilityData(
+            # Reconstruct quality_data if present
+            quality_data = None
+            if product_data.get("quality_data"):
+                dd = product_data["quality_data"]
+                quality_data = QualityData(
                     score=dd.get("score", 0),
                     average_lifespan_years=dd.get("average_lifespan_years", 0.0),
                     still_working_after_5years_percent=dd.get("still_working_after_5years_percent", 0),
@@ -195,7 +195,7 @@ class DatabaseService:
                 tier=product_data["tier"],
                 category=product_data.get("category", "general"),
                 value_metrics=value_metrics,
-                durability_data=durability_data,
+                quality_data=quality_data,
                 practical_metrics=practical_metrics,
                 characteristics=product_data.get("characteristics", []),
                 key_features=product_data.get("key_features", []),
@@ -316,18 +316,18 @@ class DatabaseService:
                             "relevance_score": source.relevance_score
                         })
 
-                    # Serialize durability_data if present
-                    durability_data_json = None
-                    if product.durability_data:
-                        durability_data_json = {
-                            "score": product.durability_data.score,
-                            "average_lifespan_years": product.durability_data.average_lifespan_years,
-                            "still_working_after_5years_percent": product.durability_data.still_working_after_5years_percent,
-                            "total_user_reports": product.durability_data.total_user_reports,
-                            "common_failure_points": product.durability_data.common_failure_points,
-                            "repairability_score": product.durability_data.repairability_score,
-                            "material_quality_indicators": product.durability_data.material_quality_indicators,
-                            "data_sources": product.durability_data.data_sources
+                    # Serialize quality_data if present
+                    quality_data_json = None
+                    if product.quality_data:
+                        quality_data_json = {
+                            "score": product.quality_data.score,
+                            "average_lifespan_years": product.quality_data.average_lifespan_years,
+                            "still_working_after_5years_percent": product.quality_data.still_working_after_5years_percent,
+                            "total_user_reports": product.quality_data.total_user_reports,
+                            "common_failure_points": product.quality_data.common_failure_points,
+                            "repairability_score": product.quality_data.repairability_score,
+                            "material_quality_indicators": product.quality_data.material_quality_indicators,
+                            "data_sources": product.quality_data.data_sources
                         }
 
                     # Serialize practical_metrics if present
@@ -367,7 +367,7 @@ class DatabaseService:
                         "web_sources": web_sources_json,
                         "maintenance_level": product.maintenance_level,
                         "category": product.category,
-                        "durability_data": durability_data_json,
+                        "quality_data": quality_data_json,
                         "practical_metrics": practical_metrics_json
                     }
 

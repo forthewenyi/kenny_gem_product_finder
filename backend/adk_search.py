@@ -129,12 +129,8 @@ class ADKProductSearch:
 
 Your task: Research how people actually use the product in daily life.
 
-IMPORTANT - PARALLEL EXECUTION: Call google_search multiple times IN PARALLEL for efficiency.
-Make 3-4 search calls simultaneously, not sequentially. Example:
-- Call google_search for "product reddit usage patterns"
-- Call google_search for "product durability issues"
-- Call google_search for "product material science"
-ALL AT ONCE in the same response.
+IMPORTANT - TESTING MODE: Make just 1 focused search call.
+Example: Call google_search for "product reddit usage patterns durability issues"
 
 When searching:
 1. Focus on Reddit discussions and user forums for authentic experiences
@@ -142,10 +138,8 @@ When searching:
 3. Identify what actually matters vs marketing claims
 4. Find material science insights (durability, compatibility, longevity)
 
-Search topics (make ALL these calls in parallel):
-- Real user experiences and usage patterns
-- Material properties and durability insights
-- Common problems and what to avoid
+Search topic (combine into 1 query):
+- Real user experiences, usage patterns, durability, and common problems
 
 Return ONLY a JSON summary with:
 {
@@ -169,27 +163,23 @@ Return ONLY a JSON summary with:
 
 Context from previous research: {context_research}
 
-Your task: Find specific product recommendations that align with the usage patterns and critical factors identified.
+Your task: Find specific product recommendations (6-9 products) across all price ranges that align with the usage patterns.
 
-IMPORTANT - PARALLEL EXECUTION: Call google_search multiple times IN PARALLEL for speed.
-Make 4-6 search calls simultaneously, not one-by-one. Example:
-- Call google_search for "best [product] reddit 2024"
-- Call google_search for "[product] wirecutter review"
-- Call google_search for "[product] durability long term"
-- Call google_search for "[specific brand] [product] review"
-ALL AT ONCE in the same response.
+🚨 CRITICAL - UI TESTING MODE 🚨
+YOU ARE STRICTLY LIMITED TO EXACTLY 1 SEARCH CALL - NO MORE!
+After your first google_search call, you MUST stop searching and work with only the results you have.
+Do NOT make additional searches for pricing - extract prices from the first search results only.
+If you cannot find prices in the first search, estimate based on product tier (budget/mid/premium).
 
-Search topics (make ALL these calls in parallel):
-- Community-recommended specific products ("best [product] reddit")
-- Professional review site rankings (Wirecutter, Serious Eats)
-- Product-specific durability reports
-- Specific highly-rated products by brand
-- Price comparisons and value analysis
+Make 1 focused search that combines everything:
+Example: "best [product] reddit wirecutter 2024 price amazon buy"
+
+This single search must get you: products, reviews, AND pricing all at once.
 
 For each product found, extract ALL of these fields:
 - name: Full product name
 - brand: Brand name
-- price: Numeric price (e.g. 45.99)
+- price: Numeric price in USD (e.g. 45.99). **CRITICAL: You MUST find the actual price** - search "{product name} price" or "{product name} buy" to find current pricing from retailers like Amazon, Walmart, or manufacturer websites. Do NOT include products if you cannot find a price.
 - lifespan: Expected lifespan in years (e.g. 5, 10, or "10-15")
 - materials: Array of materials (e.g. ["cast iron", "stainless steel"])
 - key_features: Array of key features (e.g. ["dishwasher safe", "oven safe to 500°F"])
@@ -201,7 +191,13 @@ For each product found, extract ALL of these fields:
 - purchase_links: Array of {name, url} where to buy (e.g. Amazon, manufacturer site)
 - professional_reviews: Array of review site names (e.g. ["Wirecutter", "Serious Eats"])
 
-Return ONLY a JSON with 15-25 products total (find as many solid options as you can):
+**IMPORTANT PRICING RULES**:
+- Extract prices from your ONE search result
+- If exact price not found, estimate: Budget tier ($15-50), Mid tier ($50-150), Premium tier ($150-400)
+- DO NOT make additional searches for pricing - work with what you have
+- Include 6-9 products minimum (you can work with incomplete data for UI testing)
+
+Return ONLY a JSON with 6-9 products total:
 {
   "products": [
     {
@@ -237,16 +233,45 @@ Return ONLY a JSON with 15-25 products total (find as many solid options as you 
 Context Research: {context_research}
 Product Findings: {product_findings}
 
-Your task: Analyze products and organize them into Good/Better/Best tiers.
+Your task: Analyze products and organize them into Good/Better/Best tiers based on QUALITY and DURABILITY, not price.
 
 IMPORTANT: Preserve ALL fields from product_findings for each product. Do not drop any fields.
 
-Tier Guidelines:
-- GOOD TIER: Budget-friendly ($0-50), solid basics, good value (4-7 products)
-- BETTER TIER: Mid-range ($50-150), better features/durability (4-7 products)
-- BEST TIER: Premium ($150+), exceptional quality/longevity (4-7 products)
+TIER DISTRIBUTION - QUALITY-BASED (NOT PRICE-BASED):
+Organize products based on ALL 4 quality factors weighted equally. Evaluate each product across these dimensions:
 
-IMPORTANT: Include ALL worthy products from product_findings. Don't artificially limit to fewer products if you found more good options.
+**GOOD TIER (Solid Basics)**: 4-6 products
+Products that meet MOST of these criteria:
+- **Longevity**: 3-7 years typical lifespan
+- **Failure Rate**: 60-75% still working after 5 years (moderate reliability)
+- **Repairability**: Limited repair options, some maintenance required
+- **Materials**: Standard materials (basic cast iron, aluminum, standard stainless steel)
+- Example: Budget Lodge skillet ($30) - basic cast iron, will last but needs care
+
+**BETTER TIER (Long-Lasting Quality)**: 4-6 products
+Products that meet MOST of these criteria:
+- **Longevity**: 7-15 years typical lifespan
+- **Failure Rate**: 75-85% still working after 5 years (reliable)
+- **Repairability**: Professional repair available, moderate maintenance
+- **Materials**: High-quality materials (premium stainless steel, hard-anodized aluminum)
+- Example: Mid-range products with solid construction and good track record
+
+**BEST TIER (Lifetime Investment)**: 4-6 products
+Products that meet MOST of these criteria:
+- **Longevity**: 15+ years or lifetime (heirloom quality)
+- **Failure Rate**: 85%+ still working after 5 years (rock solid reliability)
+- **Repairability**: User-serviceable, easy to repair, parts available
+- **Materials**: Premium materials (cast iron, forged steel, professional-grade stainless)
+- Example: Field Company skillet ($145) - premium cast iron that lasts generations
+
+CRITICAL RULES:
+1. A product doesn't need to excel in ALL 4 factors - meeting MOST criteria for a tier qualifies it
+2. A $30 product with 25-year lifespan + premium materials + easy repair = BEST tier
+3. A $300 product with 3-year lifespan + poor materials + no repair = GOOD tier
+4. Price is NOT a factor - only the 4 quality dimensions matter
+5. Weight all 4 factors equally when making tier decisions
+
+Include ALL worthy products from product_findings. Don't artificially limit to fewer products if you found more good options.
 
 CRITICAL: Output ONLY this JSON structure (no markdown, no explanations):
 
@@ -274,7 +299,7 @@ CRITICAL: Output ONLY this JSON structure (no markdown, no explanations):
   "what_to_avoid": ["Common issue to avoid..."]
 }
 
-For each product, copy ALL fields from product_findings. Add to the appropriate tier based on price.
+For each product, copy ALL fields from product_findings. Add to the appropriate tier based on QUALITY/LIFESPAN as specified in the tier distribution rules above (NOT based on price).
 Output ONLY the JSON - no markdown blocks, no explanations.
 """,
             tools=[]  # Synthesis agent doesn't need to search

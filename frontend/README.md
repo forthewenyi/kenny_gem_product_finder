@@ -49,10 +49,19 @@ frontend/
 - No auto-triggering - simple state management
 
 #### Result Filters (Post-Search)
-- Client-side filtering of displayed products
-- Dynamically generated from backend's `aggregated_characteristics`
-- Filter by characteristics, materials, and price tier
-- No backend API calls - instant filtering
+FilterBar component with 6 filter types:
+- **Value**: Good/Better/Best tier filtering
+- **Price**: Range slider for maximum upfront price
+- **Brand**: Toggle buttons for all brands in results
+- **Material**: Toggle buttons for product materials
+- **Features**: Toggle buttons for characteristics (dynamically generated from backend)
+- **Cost/Year**: Range slider for maximum annual ownership cost
+
+Features:
+- Client-side filtering - no backend API calls (instant)
+- Always visible with expandable sections
+- Active filters displayed as removable pills
+- Clear all functionality
 
 ### 3. Product Display
 - Good/Better/Best tier organization
