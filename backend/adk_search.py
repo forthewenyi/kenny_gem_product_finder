@@ -125,25 +125,22 @@ class ADKProductSearch:
             name="context_discovery_agent",
             model=self.model,
             description="Researches how people actually use products and what matters in real-world usage",
-            instruction="""You are a product research expert focused on understanding real-world usage.
+            instruction="""Research how people use the product in daily life.
 
-Your task: Research how people actually use the product in daily life.
+IMPORTANT - PARALLEL TOOL CALLS:
+When you need multiple pieces of information, ALWAYS call search functions in parallel.
+Call all 3 search functions simultaneously in a single turn - do NOT wait for results between searches.
 
-SEARCH STRATEGY: Execute 5-7 focused searches to build comprehensive understanding.
-Make parallel searches for different aspects - the tool supports concurrent execution.
+Make EXACTLY 3 searches IN PARALLEL:
+1. "[product] reddit honest review"
+2. "[product] durability common problems"
+3. "[product] material quality"
 
-Search for these topics (make 5-7 separate searches):
-1. Real user experiences on Reddit (e.g., "[product] reddit honest review")
-2. Usage patterns and scenarios (e.g., "[product] best use cases daily cooking")
-3. Durability and longevity (e.g., "[product] how long does it last lifespan")
-4. Common problems and failures (e.g., "[product] common problems issues reddit")
-5. Material science insights (e.g., "[product] material quality durability comparison")
-6. Living situation constraints (e.g., "[product] kitchen space storage requirements")
-7. Compatibility considerations (e.g., "[product] works with induction gas electric")
+Examples of parallel calls:
+- Need reddit reviews AND durability data → Call both google_search functions simultaneously
+- Need 3 different topics → Call google_search 3 times in parallel
 
-Focus on Reddit, expert forums, and user communities for authentic experiences.
-
-Return ONLY a JSON summary with:
+After all searches complete, return ONLY this JSON:
 {
   "usage_patterns": ["pattern1", "pattern2"],
   "key_materials": ["material insights"],
@@ -161,68 +158,56 @@ Return ONLY a JSON summary with:
             name="product_finder_agent",
             model=self.model,
             description="Finds specific products, reads reviews, and identifies top recommendations",
-            instruction="""You are a product research expert focused on finding the best specific products.
+            instruction="""Find 6-9 products with pricing.
 
-Context from previous research: {context_research}
+Context: {context_research}
 
-Your task: Find specific product recommendations (6-9 products) across all price ranges that align with the usage patterns.
+IMPORTANT - PARALLEL TOOL CALLS:
+When you need multiple pieces of information, ALWAYS call search functions in parallel.
+Call all 8 search functions simultaneously in a single turn - do NOT wait for results between searches.
 
-SEARCH STRATEGY: Execute 8-12 targeted searches to discover quality products across all tiers.
-Make parallel searches for different price tiers and product types.
+Make EXACTLY 8 searches IN PARALLEL:
+1. "best budget [product] under $50 amazon"
+2. "best [product] $50-150 wirecutter"
+3. "best premium [product] reddit"
+4. "[product] professional recommendation amazon"
+5. "[product] wirecutter winner"
+6. "[product] america's test kitchen"
+7. "best [product] reddit bifl"
+8. "[product] comparison review"
 
-Search for these aspects (make 8-12 separate searches):
-1. Budget-tier products (e.g., "best budget [product] under $50 reddit")
-2. Mid-tier quality products (e.g., "best [product] $50-150 wirecutter serious eats")
-3. Premium buy-it-for-life (e.g., "best premium [product] buy for life reddit")
-4. Professional recommendations (e.g., "[product] professional chef recommendation")
-5. Reddit favorites (e.g., "best [product] reddit bifl recommendations")
-6. Expert reviews (e.g., "[product] wirecutter america's test kitchen review")
-7. Specific brands (e.g., "Lodge vs Field Company [product] comparison")
-8. Pricing searches (e.g., "[specific product model] price amazon where to buy")
-9. Durability reports (e.g., "[product] longevity how many years lifespan")
-10. User reviews (e.g., "[product] long term review 5 years later")
+Examples of parallel calls:
+- Need budget AND premium products → Call both google_search functions simultaneously
+- Need reviews from 8 sources → Call google_search 8 times in parallel
+- Always prefer multiple specific function calls over sequential searches
 
-For EACH search, extract products you find. Combine findings across all searches.
+After all searches complete, extract products and return JSON. If prices are missing, estimate: Budget=$15-50, Mid=$50-150, Premium=$150-400.
 
-For each product found, extract ALL of these fields:
-- name: Full product name
-- brand: Brand name
-- price: Numeric price in USD (e.g. 45.99). **CRITICAL: You MUST provide a price for every product**
-- lifespan: Expected lifespan in years (e.g. 5, 10, or "10-15")
-- materials: Array of materials (e.g. ["cast iron", "stainless steel"])
-- key_features: Array of key features (e.g. ["dishwasher safe", "oven safe to 500°F"])
-- characteristics: Array of searchable characteristics (e.g. ["Non-stick", "Heavy-duty", "Ergonomic handle"])
-- why_its_a_gem: 2-3 sentences explaining why this product is recommended
-- best_for: Specific use case (e.g. "Daily cooking for families of 4+")
-- trade_offs: Array of cons or limitations (e.g. ["Heavy weight may tire some users"])
-- web_sources: Array of source URLs where you found this info
-- purchase_links: Array of {name, url} where to buy (e.g. Amazon, manufacturer site)
-- professional_reviews: Array of review site names (e.g. ["Wirecutter", "Serious Eats"])
+Extract these 15 fields for each product:
+- name, brand, category (e.g., "cast iron skillet", "chef's knife", "dutch oven"), materials (array), key_features (array), key_differentiator (string), why_its_a_gem (string)
+- maintenance_tasks (array), learning_curve (string), drawbacks (array)
+- professional_reviews (array), best_for (string)
+- price (number), lifespan (string like "15-25 years" or "5-10 years"), purchase_links (array of {name, url})
 
-**IMPORTANT PRICING RULES**:
-- Extract exact prices from your search results when available
-- Make dedicated searches for pricing if needed (e.g., "[product name] price amazon")
-- If exact price not found after searching, estimate based on product tier: Budget ($15-50), Mid ($50-150), Premium ($150-400)
-- ALWAYS include a price estimate for every product - never leave price as null or unknown
-- Include 6-9 products minimum across all tiers
-
-Return ONLY a JSON with 6-9 products total:
+Return JSON with 6-9 products:
 {
   "products": [
     {
       "name": "Lodge 10.25 Inch Cast Iron Skillet",
       "brand": "Lodge",
-      "price": 19.99,
-      "lifespan": "30+",
+      "category": "cast iron skillet",
       "materials": ["cast iron"],
-      "key_features": ["Pre-seasoned", "Oven safe", "Induction compatible"],
-      "characteristics": ["Heavy-duty", "Non-stick when seasoned", "Versatile"],
-      "why_its_a_gem": "The Lodge Cast Iron Skillet is an industry standard...",
-      "best_for": "Budget-conscious home cooks who want a durable workhorse",
-      "trade_offs": ["Requires seasoning maintenance", "Heavy weight"],
-      "web_sources": ["https://www.seriouseats.com/..."],
-      "purchase_links": [{"name": "Amazon", "url": "https://amazon.com/..."}],
-      "professional_reviews": ["Wirecutter", "Serious Eats"]
+      "key_features": ["Pre-seasoned", "Oven safe to 500°F", "Induction compatible", "Helper handle", "10.25-inch diameter"],
+      "key_differentiator": "Best value in entry-level cast iron - pre-seasoned and ready to use at the lowest price point",
+      "why_its_a_gem": "The Lodge Cast Iron Skillet is an industry standard that delivers professional-level heat retention and versatility at an unbeatable price. It's been the go-to choice for home cooks and professional chefs for over 100 years.",
+      "maintenance_tasks": ["Season after each use", "Hand wash only", "Dry immediately to prevent rust"],
+      "learning_curve": "Moderate - requires understanding proper heat control and seasoning maintenance, but becomes intuitive after a few uses",
+      "drawbacks": ["Heavy weight (5+ lbs)", "Requires regular seasoning", "Not dishwasher safe"],
+      "professional_reviews": ["Wirecutter Budget Pick", "Serious Eats Top Choice"],
+      "best_for": "Budget-conscious home cooks who want a durable workhorse for daily cooking",
+      "price": 19.99,
+      "lifespan": "30+ years",
+      "purchase_links": [{"name": "Amazon", "url": "https://amazon.com/..."}]
     }
   ]
 }
@@ -236,79 +221,51 @@ Return ONLY a JSON with 6-9 products total:
         return Agent(
             name="synthesis_agent",
             model=self.model,
-            description="Analyzes all research and creates tiered product recommendations",
-            instruction="""You are a product analysis expert who synthesizes research into actionable recommendations.
+            description="Analyzes all research and creates tiered product recommendations based on Value vs Price",
+            instruction="""Organize products into Good/Better/Best tiers by VALUE vs PRICE ratio.
 
-Context Research: {context_research}
-Product Findings: {product_findings}
+Context: {context_research}
+Products: {product_findings}
 
-Your task: Analyze products and organize them into Good/Better/Best tiers based on QUALITY and DURABILITY, not price.
+Tier by VALUE/PRICE ratio:
+- GOOD: Solid value at entry price
+- BETTER: Step-up worth the investment
+- BEST: Exceptional VALUE/PRICE (premium worth it OR budget punching above weight)
 
-IMPORTANT: Preserve ALL fields from product_findings for each product. Do not drop any fields.
-
-TIER DISTRIBUTION - QUALITY-BASED (NOT PRICE-BASED):
-Organize products based on ALL 4 quality factors weighted equally. Evaluate each product across these dimensions:
-
-**GOOD TIER (Solid Basics)**: 4-6 products
-Products that meet MOST of these criteria:
-- **Longevity**: 3-7 years typical lifespan
-- **Failure Rate**: 60-75% still working after 5 years (moderate reliability)
-- **Repairability**: Limited repair options, some maintenance required
-- **Materials**: Standard materials (basic cast iron, aluminum, standard stainless steel)
-- Example: Budget Lodge skillet ($30) - basic cast iron, will last but needs care
-
-**BETTER TIER (Long-Lasting Quality)**: 4-6 products
-Products that meet MOST of these criteria:
-- **Longevity**: 7-15 years typical lifespan
-- **Failure Rate**: 75-85% still working after 5 years (reliable)
-- **Repairability**: Professional repair available, moderate maintenance
-- **Materials**: High-quality materials (premium stainless steel, hard-anodized aluminum)
-- Example: Mid-range products with solid construction and good track record
-
-**BEST TIER (Lifetime Investment)**: 4-6 products
-Products that meet MOST of these criteria:
-- **Longevity**: 15+ years or lifetime (heirloom quality)
-- **Failure Rate**: 85%+ still working after 5 years (rock solid reliability)
-- **Repairability**: User-serviceable, easy to repair, parts available
-- **Materials**: Premium materials (cast iron, forged steel, professional-grade stainless)
-- Example: Field Company skillet ($145) - premium cast iron that lasts generations
-
-CRITICAL RULES:
-1. A product doesn't need to excel in ALL 4 factors - meeting MOST criteria for a tier qualifies it
-2. A $30 product with 25-year lifespan + premium materials + easy repair = BEST tier
-3. A $300 product with 3-year lifespan + poor materials + no repair = GOOD tier
-4. Price is NOT a factor - only the 4 quality dimensions matter
-5. Weight all 4 factors equally when making tier decisions
-
-Include ALL worthy products from product_findings. Don't artificially limit to fewer products if you found more good options.
-
-CRITICAL: Output ONLY this JSON structure (no markdown, no explanations):
+For each product, copy ALL 15 fields from product_findings AND add "tier" field. Output ONLY JSON:
 
 {
   "good_tier": [
     {
+      "tier": "good",
       "name": "Full Product Name",
       "brand": "Brand Name",
-      "price": 45.99,
-      "lifespan": "10-15",
-      "materials": ["material1"],
-      "key_features": ["feature1", "feature2"],
-      "characteristics": ["char1", "char2"],
-      "why_its_a_gem": "Why this product is recommended...",
-      "best_for": "Specific use case",
-      "trade_offs": ["con1", "con2"],
-      "web_sources": ["https://url1.com"],
-      "purchase_links": [{"name": "Amazon", "url": "https://..."}],
-      "professional_reviews": ["Wirecutter"]
+      "category": "cast iron skillet",
+      "materials": ["cast iron"],
+      "key_features": ["Pre-seasoned", "Oven safe", "Helper handle"],
+      "key_differentiator": "What makes this special",
+      "why_its_a_gem": "Value proposition...",
+      "maintenance_tasks": ["Season after use", "Hand wash"],
+      "learning_curve": "Moderate - requires seasoning knowledge",
+      "drawbacks": ["Heavy", "Needs maintenance"],
+      "professional_reviews": ["Wirecutter Pick"],
+      "best_for": "Budget home cooks",
+      "price": 19.99,
+      "lifespan": "30+ years",
+      "purchase_links": [{"name": "Amazon", "url": "https://..."}]
     }
   ],
-  "better_tier": [4-7 products with ALL fields],
-  "best_tier": [4-7 products with ALL fields],
+  "better_tier": [products with ALL 15 fields + tier="better"],
+  "best_tier": [products with ALL 15 fields + tier="best"],
   "key_insights": ["Based on context research, users should prioritize..."],
   "what_to_avoid": ["Common issue to avoid..."]
 }
 
-For each product, copy ALL fields from product_findings. Add to the appropriate tier based on QUALITY/LIFESPAN as specified in the tier distribution rules above (NOT based on price).
+For each product:
+1. Copy ALL 15 fields from product_findings exactly as they appear
+2. Add "tier" field matching the tier they're assigned to ("good", "better", or "best")
+3. Place in appropriate tier array based on VALUE vs PRICE ratio
+
 Output ONLY the JSON - no markdown blocks, no explanations.
 """,
             tools=[]  # Synthesis agent doesn't need to search
@@ -516,6 +473,12 @@ Output ONLY the JSON - no markdown blocks, no explanations.
                     "key_insights": [result_text],
                     "raw_response": result_text
                 }
+
+            # Normalize products: copy key_features to characteristics for filtering
+            for tier in ["good_tier", "better_tier", "best_tier"]:
+                for product in result.get(tier, []):
+                    if "characteristics" not in product and "key_features" in product:
+                        product["characteristics"] = product["key_features"]
 
             # Add aggregated characteristics
             result["aggregated_characteristics"] = self._aggregate_characteristics(result)
