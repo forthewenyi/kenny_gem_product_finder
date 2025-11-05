@@ -22,6 +22,19 @@ export default function SearchInterface({
 }: SearchInterfaceProps) {
   const [query, setQuery] = useState('')
 
+  // Map technical phase names to user-friendly display names
+  const getPhaseDisplayName = (phase: string) => {
+    switch (phase) {
+      case 'product_finder':
+        return 'Researching What Makes a Great Product'
+      case 'context_discovery':
+      case 'contextual_search':
+        return 'Researching Top Products & Reviews'
+      default:
+        return phase
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (query.trim()) {
@@ -70,13 +83,13 @@ export default function SearchInterface({
               {wsConnected && progressMessage ? (
                 <>
                   {progressMessage}
-                  {currentAgent && <span className="ml-2 text-blue-600">({currentAgent})</span>}
-                  {totalSearches && totalSearches > 0 && (
-                    <span className="ml-2 text-green-600">• {totalSearches} searches executed</span>
+                  {currentAgent && <span className="ml-2">{getPhaseDisplayName(currentAgent)}</span>}
+                  {totalSearches !== undefined && totalSearches > 0 && (
+                    <span className="ml-2">{totalSearches} AI searches executed</span>
                   )}
                 </>
               ) : (
-                'Kenny is digging... Analyzing Reddit, expert reviews, and user reports (20-30 seconds for thorough search)'
+                'Kenny is digging... Analyzing Reddit, expert reviews, and user reports'
               )}
             </span>
           </span>

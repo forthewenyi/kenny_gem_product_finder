@@ -178,9 +178,68 @@ kenny-gem-finder/
 
 See [TODO](#-todo) section below for tracking.
 
+## 📝 Recent Updates
+
+### November 5, 2025 - Lifespan Parsing Fix & Comparison Reorganization ✅
+
+**Completed:**
+- ✅ **Fixed lifespan parsing bug** for heirloom products (`backend/main.py:603-653`)
+  - Added special keyword detection for "Lifetime", "Generations", "Decades"
+  - "Lifetime / Generations" → 75 years (multi-generational heirloom)
+  - "Lifetime" → 50 years (buy-it-for-life quality)
+  - "Generations" → 75 years (heirloom quality)
+  - "Decades" → 30 years (multiple decades)
+  - **Impact**: Le Creuset cost/year fixed from $380/year → $5.07/year ✅
+  - **Impact**: Staub cost/year fixed from $320/year → $4.67/year ✅
+- ✅ **Reorganized comparison component** to VALUE framework order (`frontend/app/HomePageContent.tsx:424-663`)
+  - 🔨 **PRODUCT**: brand, materials, key_features, why_its_a_gem, quality metrics
+  - 🛠️ **SERVICE**: learning_curve, maintenance, honest drawbacks
+  - 💎 **EQUITY**: professional_reviews (now displayed!), best_for
+  - 💰 **PRICE & ACTION**: value breakdown, purchase links
+- ✅ Added **Professional Reviews** section (was missing in previous comparison view)
+- ✅ Changed "Trade-offs" → "Honest Drawbacks" for transparency
+- ✅ **Fixed parenthetical text edge case** in lifespan parsing (`backend/main.py:618-621`)
+  - Added regex to strip parenthetical text before processing ranges
+  - "5-10 years (or more with very careful handling)" → now correctly parses to 7.5 years ✅
+  - "15-30 years (with proper care, enamel durability is key)" → now correctly parses to 22.5 years ✅
+
+### November 4, 2025 - VALUE Framework Implementation ✅
+
+**Completed:**
+- ✅ Implemented VALUE framework across entire stack (backend, frontend, database)
+- ✅ Changed "Quality" → "Value" terminology in all UI components
+- ✅ Reorganized comparison cards and product detail modals by VALUE framework order:
+  - 🔨 **PRODUCT** (Physical Quality): name, brand, materials, key_features, why_its_a_gem
+  - 🛠️ **SERVICE** (Support & Usability): maintenance_tasks, learning_curve, drawbacks
+  - 💎 **EQUITY** (Trust & Value Retention): professional_reviews, best_for
+  - 💰 **PRICE & ACTION**: price, lifespan, cost/year, cost/day, purchase_links
+- ✅ Updated ProductCard stars to align with value score (not just quality)
+- ✅ Verified all 6 filters working: Value Tier, Price, Brand, Material, Features, "What to Look For"
+- ✅ Renamed `trade_offs` → `drawbacks` for honest terminology
+- ✅ Added VALUE_FRAMEWORK_ALIGNMENT.md documentation
+- ✅ Created comprehensive verification scripts
+
+**VALUE Score Calculation:**
+```
+VALUE Score (0-100) = PRODUCT (80 pts) + SERVICE (20 pts)
+
+PRODUCT (80 pts) = Longevity (30) + Failure Rate (30) + Materials (20)
+SERVICE (20 pts) = Repairability/Maintenance (20)
+
+Then compared against PRICE to determine tier:
+- GOOD: Great value for the price
+- BETTER: Excellent value with premium features
+- BEST: Best-in-class, heirloom quality
+```
+
 ## 📝 TODO
 
 ### High Priority
+
+- [ ] **Add key_differentiator field**: What makes THIS product special vs competitors
+  - Currently only in agent prompts, not returned in Product schema
+  - Add to backend models.py, frontend types, and database schema
+  - Display in PRODUCT section of comparison cards and modal
 
 - [ ] **Product Images**: Extract image URLs from search results to display product photos
   - ADK agents should capture product image URLs during searches
@@ -195,14 +254,15 @@ See [TODO](#-todo) section below for tracking.
   - Display current agent step and search queries being executed
 
 - [ ] **Fix Search Transparency Metrics**: Section shows "0 sources from 0 searches" despite having results
-  - Issue: ADK event parsing in backend not capturing search metrics correctly
-  - Need to extract `search_queries` and `total_sources_analyzed` from ADK agent responses
-  - Verify `SearchResponse` model fields are populated during synthesis
-  - Test with `queries_generated` and `sources_by_phase` fields
+  - ✅ Backend IS correctly capturing metrics (verified in logs: 11 searches, 160-188 sources)
+  - ✅ `sources_by_phase_dict` populated correctly with all query details
+  - ❌ Frontend display issue - metrics not rendering in SearchMetrics component
+  - Need to verify `SearchResponse` fields are being passed to frontend correctly
 
 ### Medium Priority
 
-- [ ] Lifespan parsing: "Lifetime" and "Decades" incorrectly parsed as 1 year
+- [x] ~~Lifespan parsing: "Lifetime" and "Decades" incorrectly parsed as 1 year~~ ✅ **FIXED (Nov 5)**
+- [x] ~~Lifespan parsing edge case: Parenthetical text breaks range parsing~~ ✅ **FIXED (Nov 5)**
 - [ ] Handle products with missing price data (null price causes parse failure)
 - [ ] Mobile responsive design improvements
 - [ ] Add loading skeleton states
@@ -238,6 +298,7 @@ npm run build                                 # Type checking
 
 - [Backend README](./backend/README.md) - ADK architecture, API endpoints, setup
 - [Frontend README](./frontend/README.md) - Component architecture, filter system
+- [VALUE Framework Alignment](./VALUE_FRAMEWORK_ALIGNMENT.md) - Complete system alignment report
 - [Cache Setup](./backend/CACHE_SETUP.md) - Caching implementation guide
 - [Migration to Gemini](./backend/MIGRATION_TO_GEMINI.md) - LangChain → ADK migration
 

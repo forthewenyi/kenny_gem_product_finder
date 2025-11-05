@@ -27,7 +27,16 @@ Context Discovery Agent → Product Finder Agent → Synthesis Agent
 
 ### Recent Improvements
 
-**Session Nov 4, 2024:**
+**Session Nov 5, 2024 (Frontend):**
+- Restructured comparison section for horizontal alignment across all products
+- Each subsection (Brand, Materials, Key Features, etc.) now aligns straight across
+- Renamed "What Makes This Special" → "What Sets It Apart"
+- Updated search progress display with user-friendly phase names
+- Fixed search progress to hide "0 AI searches executed" on initial load
+- Added min-height constraints to maintain row alignment
+- Identified SERVICE section data inconsistency issue (see Troubleshooting)
+
+**Session Nov 4, 2024 (Backend):**
 - Removed testing mode from ADK agents for production-ready search
 - Context Discovery Agent: 1 → 5-7 focused searches (usage, durability, materials)
 - Product Finder Agent: 1 → 8-12 targeted searches (budget/mid/premium tiers)
@@ -35,7 +44,7 @@ Context Discovery Agent → Product Finder Agent → Synthesis Agent
 - Implemented comprehensive cache clearing utilities
 - Added parallel search execution across all research phases
 
-**Session Nov 3, 2024:**
+**Session Nov 3, 2024 (Backend):**
 - Migrated from coordinator agent to SequentialAgent with state management (`output_key`)
 - Added async Google Custom Search API support via `httpx`
 - Implemented parallel search hints in agent prompts
@@ -296,6 +305,21 @@ The frontend at http://localhost:3000 will automatically use the backend API.
 - Check that agents have access to google_search tool
 - Verify Google Search API is working (check logs for search results)
 - Testing mode has been removed - agents should make 13-19 searches per query
+
+**SERVICE section data inconsistency (Nov 5, 2024)**
+- ⚠️ **Known Issue**: Some SERVICE fields not consistently showing in ProductDetailModal and comparison section
+- **Affected fields**:
+  - `maintenance_tasks` - Ongoing work required
+  - `learning_curve` - How easy to use + reasoning
+  - `trade_offs` / `drawbacks` - Honest cons/limitations
+- **Symptoms**: Fields sometimes show, sometimes don't
+- **Root cause**: Backend/frontend/database alignment issue - needs investigation
+- **Action needed**:
+  - Verify agent prompts consistently populate these fields
+  - Check database schema matches models.py (PracticalMetrics, Product)
+  - Ensure frontend correctly reads practical_metrics and drawbacks
+  - Test with fresh search (bypass cache) to verify agent output
+- **Temporary workaround**: Frontend provides fallback values when data is missing
 
 ## Migration Notes
 

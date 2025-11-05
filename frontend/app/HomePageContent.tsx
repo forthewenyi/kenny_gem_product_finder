@@ -41,6 +41,35 @@ export default function HomePageContent() {
     sendSearch: sendWebSocketSearch,
   } = useSearchWebSocket()
 
+  // Helper function to find source URL for a review
+  const findReviewSource = (reviewText: string, product: Product) => {
+    if (!product.web_sources || product.web_sources.length === 0) return null
+
+    // Common review source keywords to search for
+    const sourceKeywords = [
+      'Wirecutter', 'America\'s Test Kitchen', 'ATK', 'Serious Eats',
+      'Cook\'s Illustrated', 'Consumer Reports', 'Good Housekeeping',
+      'Food Network', 'Bon Appétit', 'Epicurious', 'The Spruce Eats',
+      'CNET', 'reviewed.com', 'NY Times', 'New York Times'
+    ]
+
+    // Try to find a matching source
+    for (const keyword of sourceKeywords) {
+      if (reviewText.toLowerCase().includes(keyword.toLowerCase())) {
+        // Find matching web source
+        const source = product.web_sources.find(s =>
+          s.url.toLowerCase().includes(keyword.toLowerCase().replace(/[''\s]/g, '')) ||
+          s.title?.toLowerCase().includes(keyword.toLowerCase())
+        )
+        if (source) {
+          return { name: keyword, url: source.url }
+        }
+      }
+    }
+
+    return null
+  }
+
   const searchMutation = useMutation({
     mutationFn: ({ query, maxPrice, context }: { query: string; maxPrice?: number; context?: Record<string, string> }) =>
       searchProducts({
@@ -400,421 +429,332 @@ export default function HomePageContent() {
                 }
                 const tierLabel = product.tier.charAt(0).toUpperCase() + product.tier.slice(1)
                 const isKennysPick = kennysPick?.name === product.name
+                const valueScore = product.quality_data?.score || 0
+
+                // Generate star rating
+                const getStars = (score: number) => {
+                  const starsOutOf5 = (score / 100) * 5
+                  const fullStars = Math.round(starsOutOf5)
+                  let stars = '★'.repeat(fullStars)
+                  const emptyStars = 5 - fullStars
+                  stars += '☆'.repeat(emptyStars)
+                  return stars
+                }
 
                 return (
                   <div key={idx} className="relative text-center bg-[#f8f8f8] p-5">
-                    <span className={`absolute top-3 left-3 text-[9px] px-2 py-1 uppercase tracking-wide font-semibold ${tierColors[product.tier]}`}>
+                    <span className={`absolute top-3 left-3 text-xs px-2 py-1 uppercase tracking-wide font-semibold ${tierColors[product.tier]}`}>
                       {tierLabel}
                     </span>
 
                     {isKennysPick && (
-                      <span className="absolute top-3 right-3 bg-black text-white px-2 py-1 text-[10px] uppercase tracking-wide">
+                      <span className="absolute top-3 right-3 bg-black text-white px-2 py-1 text-xs uppercase tracking-wide">
                         💎 Kenny's Pick
                       </span>
                     )}
 
-                    <h3 className="font-semibold text-[16px] uppercase tracking-wide mt-8">
+                    <h3 className="font-semibold text-[16px] uppercase tracking-wide mt-8 mb-2">
                       {product.name}
                     </h3>
+
+                    <div className="text-xl font-bold text-gray-900 mb-2">
+                      ${product.value_metrics.upfront_price}
+                    </div>
+
+                    {valueScore > 0 && (
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-yellow-500 text-lg">{getStars(valueScore)}</span>
+                        <span className="text-sm font-medium text-gray-600">Value: {(valueScore / 10).toFixed(1)}</span>
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </div>
 
-            {/* Comparison Rows - Consolidated */}
+            {/* Comparison Rows - VALUE Framework Order */}
+            {/* Updated Nov 5: Reorganized to PRODUCT → SERVICE → EQUITY → PRICE & ACTION */}
+            {/* Force recompile */}
             <div className="mt-12 bg-white space-y-6">
-              {/* 1. VALUE AT A GLANCE - Consolidated pricing, lifespan, why_its_a_gem */}
+              {/* 1. PRODUCT */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Value at a Glance</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => (
-                    <div key={idx} className="bg-[#f8f8f8] p-4">
-                      <div className="space-y-3">
-                        {/* Price Grid */}
-                        <div className="space-y-2 pb-3 border-b border-gray-200">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-gray-500">Upfront Price:</span>
-                            <span className="font-bold text-gray-900 text-base">${product.value_metrics?.upfront_price || 'N/A'}</span>
-                          </div>
-                          {product.value_metrics && (
-                            <>
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-500">Cost per Year:</span>
-                                <span className="font-medium text-green-600">${product.value_metrics.cost_per_year.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-500">Cost per Day:</span>
-                                <span className="font-medium text-gray-600">${product.value_metrics.cost_per_day.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-500">Expected Lifespan:</span>
-                                <span className="font-bold text-gray-900">{product.value_metrics.expected_lifespan_years}+ years</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">PRODUCT</h3>
 
-                        {/* Why It's a Gem */}
-                        <div className="pt-1">
-                          <div className="text-[10px] text-gray-500 uppercase mb-1 font-semibold">Why Kenny Recommends:</div>
-                          <div className="text-xs text-gray-700 leading-relaxed">
-                            {product.why_its_a_gem || 'High-quality, value-focused option'}
-                          </div>
+                {/* Brand Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4">
+                        <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">Brand:</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {product.brand || 'Unknown Brand'}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* 2. QUALITY & DURABILITY */}
-              <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Quality & Durability</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => (
-                    <div key={idx}>
-                      {product.quality_data ? (
-                        <div className="space-y-3">
-                          {/* Main Score */}
-                          <div className="text-center pb-3 border-b">
-                            <div className="text-3xl font-bold mb-1">
-                              {product.quality_data.score}/100
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {product.quality_data.score >= 90 ? 'Excellent' :
-                               product.quality_data.score >= 80 ? 'Very Good' :
-                               product.quality_data.score >= 70 ? 'Good' : 'Fair'}
-                            </div>
-                          </div>
-
-                          {/* Key Metrics */}
-                          <div className="space-y-2 text-xs">
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Avg Lifespan:</span>
-                              <span className="font-medium">{product.quality_data.average_lifespan_years} years</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Working after 5y:</span>
-                              <span className="font-medium">{product.quality_data.still_working_after_5years_percent}%</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">User Reports:</span>
-                              <span className="font-medium">{product.quality_data.total_user_reports}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Repairability:</span>
-                              <span className="font-medium">{product.quality_data.repairability_score}/100</span>
-                            </div>
-                          </div>
-
-                          {/* Material Quality Indicators */}
-                          {product.quality_data.material_quality_indicators &&
-                           product.quality_data.material_quality_indicators.length > 0 && (
-                            <div className="pt-2 border-t">
-                              <div className="text-xs text-gray-500 mb-1">Quality Indicators:</div>
-                              {product.quality_data.material_quality_indicators.map((indicator, i) => (
-                                <div key={i} className="text-xs">• {indicator}</div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Common Failure Points */}
-                          {product.quality_data.common_failure_points &&
-                           product.quality_data.common_failure_points.length > 0 && (
-                            <div className="pt-2 border-t">
-                              <div className="text-xs text-gray-500 mb-1">Potential Issues:</div>
-                              {product.quality_data.common_failure_points.map((point, i) => (
-                                <div key={i} className="text-xs text-red-600">• {point}</div>
-                              ))}
-                            </div>
+                {/* Materials Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                        <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">Materials:</div>
+                        <div className="space-y-1">
+                          {product.materials && product.materials.length > 0 ? (
+                            product.materials.map((mat, matIdx) => (
+                              <div key={matIdx} className="text-xs text-gray-700 leading-relaxed">• {mat}</div>
+                            ))
+                          ) : (
+                            <div className="text-xs text-gray-400">Not specified</div>
                           )}
                         </div>
-                      ) : (
-                        <p className="text-xs text-gray-400">No quality data</p>
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Key Features Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[100px]">
+                        <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">Key Features:</div>
+                        <div className="space-y-1">
+                          {product.key_features && product.key_features.length > 0 ? (
+                            (Array.isArray(product.key_features) ? product.key_features : [product.key_features]).slice(0, 3).map((feature, fIdx) => (
+                              <div key={fIdx} className="text-xs text-gray-700 leading-relaxed">• {feature}</div>
+                            ))
+                          ) : (
+                            <div className="text-xs text-gray-400">Not specified</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Why It's a Gem Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                        <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">Why It's a Gem:</div>
+                        <div className="text-xs text-gray-700 leading-relaxed">
+                          {product.why_its_a_gem || 'High-quality, value-focused option'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* What Sets It Apart Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className={product.key_differentiator ? "bg-blue-50 border border-blue-200 p-4 min-h-[80px]" : "bg-[#f8f8f8] p-4 min-h-[80px]"}>
+                        {product.key_differentiator ? (
+                          <>
+                            <div className="text-xs text-blue-900 uppercase mb-1 font-semibold flex items-center gap-1">
+                              <span>⭐</span>
+                              What Sets It Apart:
+                            </div>
+                            <div className="text-xs text-gray-800 leading-relaxed">
+                              {product.key_differentiator}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-xs text-gray-500 uppercase mb-1 font-semibold flex items-center gap-1">
+                              <span>⭐</span>
+                              What Sets It Apart:
+                            </div>
+                            <div className="text-xs text-gray-400">Not specified</div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* 3. KEY FEATURES - Combined characteristics + materials */}
+              {/* 2. SERVICE */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Key Features</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => (
-                    <div key={idx} className="space-y-3">
-                      {/* Characteristics */}
-                      {product.characteristics && product.characteristics.length > 0 && (
-                        <div>
-                          <div className="text-[10px] text-gray-500 uppercase mb-2 font-semibold">Features:</div>
-                          <div className="space-y-1">
-                            {product.characteristics.slice(0, 5).map((char, charIdx) => (
-                              <div key={charIdx} className="text-xs text-gray-700">
-                                • {char}
-                              </div>
-                            ))}
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">SERVICE</h3>
+
+                {/* Learning Curve Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs font-semibold text-gray-700">📚 Learning Curve</div>
+                          <div className="text-xs font-bold text-gray-900">
+                            {product.practical_metrics?.learning_curve || 'Medium'}
                           </div>
                         </div>
-                      )}
+                        <div className="text-xs text-gray-600 leading-relaxed">
+                          {product.practical_metrics?.learning_details || 'Easy to start using right away'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                      {/* Materials */}
-                      {product.materials && product.materials.length > 0 && (
-                        <div className="pt-2 border-t border-gray-200">
-                          <div className="text-[10px] text-gray-500 uppercase mb-2 font-semibold">Materials:</div>
-                          <div className="space-y-1">
-                            {product.materials.map((mat, matIdx) => (
-                              <div key={matIdx} className="text-xs text-gray-700">• {mat}</div>
-                            ))}
+                {/* Maintenance Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs font-semibold text-gray-700">🔧 Maintenance</div>
+                          <div className="text-xs font-bold text-gray-900">
+                            {product.practical_metrics?.maintenance_level || product.maintenance_level || 'Medium'}
                           </div>
                         </div>
-                      )}
+                        <div className="text-xs text-gray-600 leading-relaxed">
+                          {product.practical_metrics?.maintenance_details || 'Regular care required to maintain performance'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                      {!product.characteristics?.length && !product.materials?.length && (
-                        <p className="text-xs text-gray-400">No features listed</p>
-                      )}
-                    </div>
-                  ))}
+                {/* Honest Drawbacks Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                        <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">⚠ Honest Drawbacks:</div>
+                        <div className="space-y-1">
+                          {((product.drawbacks && product.drawbacks.length > 0) || (product.trade_offs && product.trade_offs.length > 0)) ? (
+                            (product.drawbacks || product.trade_offs || []).map((item, dIdx) => (
+                              <div key={dIdx} className="text-xs text-gray-600 leading-relaxed">• {item}</div>
+                            ))
+                          ) : (
+                            <div className="text-xs text-gray-400">None identified</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* 4. PRACTICAL USE - Daily Hassles */}
+              {/* 3. EQUITY */}
               <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Practical Use</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => (
-                    <div key={idx}>
-                      {product.practical_metrics ? (
-                        <div className="space-y-3">
-                          {/* Cleaning */}
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="text-xs font-semibold text-gray-700">🧼 Cleaning</div>
-                              <div className="text-xs font-bold text-gray-900">
-                                {product.practical_metrics.cleaning_time_minutes
-                                  ? `${product.practical_metrics.cleaning_time_minutes} min`
-                                  : 'Standard'}
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-600 leading-relaxed">
-                              {product.practical_metrics.cleaning_details || 'Hand wash with warm water, scrub gently, dry immediately'}
-                            </div>
-                          </div>
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">EQUITY</h3>
 
-                          {/* Setup */}
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="text-xs font-semibold text-gray-700">⚙️ Setup</div>
-                              <div className="text-xs font-bold text-gray-900">
-                                {product.practical_metrics.setup_time || 'N/A'}
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-600 leading-relaxed">
-                              {product.practical_metrics.setup_details || 'No special setup required'}
-                            </div>
-                          </div>
-
-                          {/* Learning Curve */}
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="text-xs font-semibold text-gray-700">📚 Learning Curve</div>
-                              <div className="text-xs font-bold text-gray-900">
-                                {product.practical_metrics.learning_curve || 'N/A'}
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-600 leading-relaxed">
-                              {product.practical_metrics.learning_details || 'Easy to start using right away'}
-                            </div>
-                          </div>
-
-                          {/* Maintenance */}
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="text-xs font-semibold text-gray-700">🔧 Maintenance</div>
-                              <div className="text-xs font-bold text-gray-900">
-                                {product.practical_metrics.maintenance_level || product.maintenance_level || 'N/A'}
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-600 leading-relaxed">
-                              {product.practical_metrics.maintenance_details ||
-                               (product.maintenance_level && product.maintenance_level.toLowerCase().includes('moderate')
-                                 ? 'Hand wash, dry immediately, apply light oil coating after each use'
-                                 : 'Regular care required to maintain performance')}
-                            </div>
-                          </div>
+                {/* Professional Reviews Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[120px]">
+                        <div className="text-xs text-gray-500 uppercase mb-2 font-semibold">Professional Reviews:</div>
+                        <div className="space-y-2">
+                          {product.professional_reviews && product.professional_reviews.length > 0 ? (
+                            product.professional_reviews.slice(0, 3).map((review, rIdx) => {
+                              const source = findReviewSource(review, product)
+                              return (
+                                <div key={rIdx} className="border-l-4 border-blue-500 pl-3 py-2">
+                                  <div className="text-xs text-gray-700 leading-relaxed">{review}</div>
+                                  {source && (
+                                    <a
+                                      href={source.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1 inline-block"
+                                    >
+                                      Source: {source.name} →
+                                    </a>
+                                  )}
+                                </div>
+                              )
+                            })
+                          ) : (
+                            <div className="text-xs text-gray-400">No reviews available</div>
+                          )}
                         </div>
-                      ) : (
-                        <p className="text-xs text-gray-400">No practical data available</p>
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* 5. BEST FOR & TRADE-OFFS - Consolidated considerations */}
-              <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Considerations</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => (
-                    <div key={idx} className="space-y-3">
-                      {/* Best For */}
-                      <div>
-                        <div className="text-[10px] text-gray-500 uppercase mb-1 font-semibold">✓ Best For:</div>
+                {/* Best For Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[60px]">
+                        <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">✓ Best For:</div>
                         <p className="text-xs text-gray-700 leading-relaxed">
-                          {product.best_for || 'General use'}
+                          {product.best_for || 'Not specified'}
                         </p>
                       </div>
-
-                      {/* Trade-offs */}
-                      {product.trade_offs && product.trade_offs.length > 0 && (
-                        <div className="pt-2 border-t border-gray-200">
-                          <div className="text-[10px] text-gray-500 uppercase mb-1 font-semibold">⚠ Trade-offs:</div>
-                          <div className="space-y-1">
-                            {(Array.isArray(product.trade_offs) ? product.trade_offs : [product.trade_offs]).map((tradeoff, tIdx) => (
-                              <div key={tIdx} className="text-xs text-gray-600">• {tradeoff}</div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* 6. USER REVIEWS SUMMARY - Simplified, no duplicate content */}
-              <div className="border-t pt-6">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">User Reviews Summary</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {compareProducts.map((product, idx) => {
-                    // Only show key features (not why_its_a_gem or best_for, already shown above)
-                    const keyFeature = Array.isArray(product.key_features)
-                      ? product.key_features[0]
-                      : product.key_features;
+              {/* 4. PRICE */}
+              <div className="border-t pt-6 pb-6">
+                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">PRICE</h3>
 
-                    return (
-                      <details key={idx} className="group">
-                        <summary className="cursor-pointer list-none">
-                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <span className="text-xs font-medium">View user feedback</span>
-                            <svg className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
-                        </summary>
-
-                        <div className="mt-4 space-y-3">
-                          {keyFeature && (
-                            <div className="p-3 bg-gray-50 rounded-lg">
-                              <div className="flex items-start gap-2">
-                                <div className="flex-shrink-0 text-lg">✨</div>
-                                <div className="flex-1">
-                                  <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">
-                                    Top User Insight
-                                  </div>
-                                  <div className="text-xs text-gray-700 leading-relaxed">
-                                    "{keyFeature}"
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Sources Citation */}
-                          <div className="pt-3 mt-3 border-t border-gray-200">
-                            <div className="text-[10px] text-gray-500 mb-2 font-semibold">
-                              Sources analyzed:
-                            </div>
-                            <div className="space-y-1">
-                              {(product.quality_data?.data_sources && product.quality_data.data_sources.length > 0
-                                ? product.quality_data.data_sources
-                                : product.web_sources || []
-                              ).slice(0, 3).map((source, i) => {
-                                try {
-                                  const url = typeof source === 'string' ? source : source.url;
-                                  const hostname = new URL(url).hostname.replace('www.', '');
-                                  return (
-                                    <div key={i} className="text-[10px] text-blue-600">
-                                      <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                        • {hostname}
-                                      </a>
-                                    </div>
-                                  );
-                                } catch (e) {
-                                  const displaySource = typeof source === 'string' ? source : source.url || 'Unknown source';
-                                  return (
-                                    <div key={i} className="text-[10px] text-gray-500">
-                                      • {displaySource}
-                                    </div>
-                                  );
-                                }
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      </details>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 7. WHERE TO BUY */}
-              <div className="border-t pt-6 pb-6 overflow-visible">
-                <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">Where to Buy</h3>
-                <div className="grid grid-cols-3 gap-4 overflow-visible">
-                  {compareProducts.map((product, idx) => {
-                    const getDestination = () => {
-                      if (product.purchase_links && product.purchase_links.length > 0) {
-                        try {
-                          return new URL(product.purchase_links[0].url).hostname.replace('www.', '');
-                        } catch {
-                          return product.brand;
-                        }
-                      } else if (product.web_sources && product.web_sources.length > 0) {
-                        try {
-                          const url = typeof product.web_sources[0] === 'string' ? product.web_sources[0] : product.web_sources[0].url;
-                          return new URL(url).hostname.replace('www.', '');
-                        } catch {
-                          return 'Website';
-                        }
-                      }
-                      return null;
-                    };
-
-                    const destination = getDestination();
-                    const buyUrl = product.purchase_links && product.purchase_links.length > 0
-                      ? product.purchase_links[0].url
-                      : product.web_sources && product.web_sources.length > 0
-                        ? (typeof product.web_sources[0] === 'string' ? product.web_sources[0] : product.web_sources[0].url)
-                        : null;
-
-                    return (
-                      <div key={idx} className="relative overflow-visible">
-                        {buyUrl ? (
-                          <div className="overflow-visible">
-                            <a
-                              href={buyUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="peer group relative block w-full py-3 px-4 bg-black text-white text-center text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
-                            >
-                              Buy Now
-                            </a>
-                            {/* Tooltip - shows on hover */}
-                            {destination && (
-                              <div className="invisible peer-hover:visible absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-3 py-1.5 rounded shadow-lg whitespace-nowrap z-[100]">
-                                {destination}
-                                {/* Arrow */}
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                {/* Value Breakdown Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[120px]">
+                        <div className="text-xs text-gray-500 uppercase mb-2 font-semibold">Value Breakdown:</div>
+                        {product.value_metrics && (
+                          <div className="space-y-2">
+                            {product.quality_data?.score && (
+                              <div className="flex justify-between">
+                                <span className="text-xs text-gray-500">Value Score:</span>
+                                <span className="font-bold text-gray-900 text-base">{(product.quality_data.score / 10).toFixed(1)}/10</span>
                               </div>
                             )}
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-500">Retail Price:</span>
+                              <span className="font-bold text-gray-900 text-base">${product.value_metrics.upfront_price}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-500">Expected Lifespan:</span>
+                              <span className="font-medium text-gray-700">{product.value_metrics.expected_lifespan_years}+ years</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-500">Cost per Year:</span>
+                              <span className="font-medium text-green-600">${product.value_metrics.cost_per_year.toFixed(2)}</span>
+                            </div>
                           </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Purchase Links Row */}
+                <div className="mb-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    {compareProducts.map((product, idx) => (
+                      <div key={idx} className="bg-[#f8f8f8] p-4">
+                        <div className="text-xs text-gray-500 uppercase mb-2 font-semibold">Where to Buy:</div>
+                        {product.purchase_links && product.purchase_links.length > 0 ? (
+                          <a
+                            href={product.purchase_links[0].url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full py-2 px-4 bg-black text-white text-center text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                          >
+                            Buy Now
+                          </a>
                         ) : (
-                          <div className="text-xs text-gray-400 text-center p-4 border-2 border-dashed border-gray-200 rounded-lg">
+                          <div className="text-xs text-gray-400 text-center p-3 border-2 border-dashed border-gray-200 rounded-lg">
                             No purchase link
                           </div>
                         )}
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
