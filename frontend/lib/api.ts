@@ -54,7 +54,7 @@ export interface PopularSearchItem {
 }
 
 export const getPopularSearches = async (
-  category: 'cookware' | 'knives' | 'bakeware',
+  category: 'cookware' | 'knives' | 'bakeware' | 'small_appliances' | 'kitchen_tools',
   limit: number = 8
 ): Promise<{ category: string; items: PopularSearchItem[] }> => {
   const { data } = await api.get<{ category: string; items: PopularSearchItem[] }>(
@@ -65,7 +65,7 @@ export const getPopularSearches = async (
 
 export const trackSearch = async (
   query: string,
-  category: 'cookware' | 'knives' | 'bakeware'
+  category: 'cookware' | 'knives' | 'bakeware' | 'small_appliances' | 'kitchen_tools'
 ): Promise<{ success: boolean }> => {
   try {
     const { data } = await api.post<{ success: boolean }>(

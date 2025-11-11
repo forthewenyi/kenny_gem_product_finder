@@ -55,6 +55,7 @@ export interface Product {
   key_features: string[]
   materials: string[]
   why_its_a_gem: string
+  key_differentiator?: string | null // What makes THIS product special vs competitors (optional)
   web_sources: WebSource[]
   reddit_mentions?: number | null
   professional_reviews: string[]
@@ -63,6 +64,7 @@ export interface Product {
   environmental_warnings?: string[] | null
   best_for: string
   trade_offs: string[]
+  drawbacks?: string[] | null // Renamed from trade_offs for honesty (optional for backwards compatibility)
 }
 
 export interface ProductTier {
