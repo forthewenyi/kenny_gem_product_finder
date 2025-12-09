@@ -41,12 +41,16 @@ app = FastAPI(
 
 # Initialize database service
 # Database schema updated to match current Product model
-try:
-    db_service = DatabaseService()
-    print("✅ Database caching enabled")
-except Exception as e:
-    print(f"⚠️  Database caching disabled: {e}")
-    db_service = None
+# TEMPORARILY DISABLED for testing new agent logic
+# try:
+#     db_service = DatabaseService()
+#     print("✅ Database caching enabled")
+# except Exception as e:
+#     print(f"⚠️  Database caching disabled: {e}")
+#     db_service = None
+
+db_service = None
+print("🔍 Cache DISABLED for testing")
 
 # Progress tracking for WebSocket real-time updates
 # Maps search_id -> callback function to emit progress events
@@ -503,13 +507,20 @@ async def search_products(query: SearchQuery):
             search_queries_list = []
             sources_by_phase_dict = metrics_data.get("sources_by_phase", {})
 
+            print(f"DEBUG: sources_by_phase_dict keys: {list(sources_by_phase_dict.keys())}")
+            print(f"DEBUG: sources_by_phase_dict: {sources_by_phase_dict}")
+
             for phase_name, phase_data in sources_by_phase_dict.items():
                 if isinstance(phase_data, dict) and "queries" in phase_data:
-                    for query_text in phase_data["queries"]:
+                    queries = phase_data["queries"]
+                    print(f"DEBUG: Phase '{phase_name}' has {len(queries)} queries")
+                    for query_text in queries:
                         search_queries_list.append(PhaseQueryInfo(
                             phase=phase_name,
                             query=query_text
                         ))
+
+            print(f"DEBUG: Total search_queries_list items: {len(search_queries_list)}")
 
             # Extract metrics
             total_sources = metrics_data.get("total_sources_analyzed", 0)
@@ -592,7 +603,7 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
         def parse_lifespan_to_years(lifespan) -> float:
             """
             Parse lifespan string to numeric years.
-            Handles formats: "2-5 years", "30+ years", "15 years", or plain numbers.
+            Handles formats: "2-5 years", "30+ years", "15 years", "Lifetime", "Generations", "Decades", or plain numbers.
             Returns average for ranges, minimum for "+" format.
             """
             if isinstance(lifespan, (int, float)):
@@ -603,6 +614,25 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
 
             # Remove "years" and clean up
             lifespan_str = lifespan.lower().replace("years", "").replace("year", "").strip()
+
+            # Strip parenthetical text to avoid breaking range parsing
+            # e.g., "5-10 (or more with careful handling)" → "5-10"
+            import re
+            lifespan_str = re.sub(r'\([^)]*\)', '', lifespan_str).strip()
+
+            # Handle special lifetime keywords (before numeric parsing)
+            if "lifetime" in lifespan_str and "generation" in lifespan_str:
+                # "Lifetime / Generations" → 75 years (multiple generations)
+                return 75.0
+            elif "lifetime" in lifespan_str:
+                # "Lifetime" → 50 years (buy-it-for-life quality)
+                return 50.0
+            elif "generation" in lifespan_str:
+                # "Generations" → 75 years (heirloom quality)
+                return 75.0
+            elif "decade" in lifespan_str:
+                # "Decades" → 30 years (multiple decades estimated)
+                return 30.0
 
             # Handle range format: "2-5" → average
             if "-" in lifespan_str:
@@ -663,35 +693,29 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                     lifespan=float(lifespan)
                 )
 
-                # Parse web sources (handle both string URLs and dict objects)
+                # Web sources - agents don't output this, create placeholder from purchase links
                 web_sources = []
-                for source in product_data.get("web_sources", []):
-                    if isinstance(source, str):
-                        # If source is a URL string, create WebSource with just URL
+                purchase_links = product_data.get("purchase_links", [])
+                if purchase_links:
+                    # Create web source from first purchase link as reference
+                    first_link = purchase_links[0]
+                    if isinstance(first_link, dict) and "url" in first_link:
                         web_sources.append(WebSource(
-                            url=source,
-                            title="Source",
-                            snippet=""
-                        ))
-                    elif isinstance(source, dict):
-                        # If source is a dict, parse it normally
-                        web_sources.append(WebSource(
-                            url=source.get("url", ""),
-                            title=source.get("title", ""),
-                            snippet=source.get("snippet", ""),
-                            relevance_score=source.get("relevance_score")
+                            url=first_link["url"],
+                            title=first_link.get("name", "Product Page"),
+                            snippet=f"Purchase link for {product_data.get('name', 'product')}"
                         ))
 
-                # Handle trade_offs (might be string or list)
-                trade_offs_raw = product_data.get("trade_offs", [])
-                if isinstance(trade_offs_raw, str):
-                    # Split by period for sentence-based trade-offs
-                    if ". " in trade_offs_raw:
-                        trade_offs = [t.strip() for t in trade_offs_raw.split(". ") if t.strip()]
+                # Handle drawbacks (might be string or list)
+                drawbacks_raw = product_data.get("drawbacks", [])
+                if isinstance(drawbacks_raw, str):
+                    # Split by period for sentence-based drawbacks
+                    if ". " in drawbacks_raw:
+                        drawbacks = [t.strip() for t in drawbacks_raw.split(". ") if t.strip()]
                     else:
-                        trade_offs = [trade_offs_raw] if trade_offs_raw else []
+                        drawbacks = [drawbacks_raw] if drawbacks_raw else []
                 else:
-                    trade_offs = trade_offs_raw
+                    drawbacks = drawbacks_raw
 
                 # Import QualityData model
                 from models import QualityData
@@ -720,7 +744,7 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                         "repairability_info": product_data.get("repairability_info"),
                         "maintenance_level": product_data.get("maintenance_level", "Medium"),
                         "materials": product_data.get("materials", []),
-                        "why_gem": product_data.get("why_its_a_gem", ""),
+                        "why_its_a_gem": product_data.get("why_its_a_gem", ""),
                         "tier": product_data.get("tier", "better")
                     })
 
@@ -823,6 +847,21 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                     # Convert dict to list of "key: value" strings
                     characteristics = [f"{k}: {v}" for k, v in characteristics.items()]
 
+                # Derive maintenance_level from maintenance_tasks if not provided
+                maintenance_tasks = product_data.get("maintenance_tasks", [])
+                maintenance_level = product_data.get("maintenance_level")
+                if not maintenance_level and maintenance_tasks:
+                    # Derive from number of maintenance tasks
+                    num_tasks = len(maintenance_tasks) if isinstance(maintenance_tasks, list) else 1
+                    if num_tasks <= 1:
+                        maintenance_level = "Low"
+                    elif num_tasks <= 3:
+                        maintenance_level = "Medium"
+                    else:
+                        maintenance_level = "High"
+                else:
+                    maintenance_level = maintenance_level or "Medium"
+
                 # Create Product object
                 product = Product(
                     name=product_data.get("name", "Unknown Product"),
@@ -836,14 +875,16 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
                     key_features=key_features,
                     materials=materials,
                     why_its_a_gem=product_data.get("why_its_a_gem", ""),
+                    key_differentiator=product_data.get("key_differentiator"),
+                    image_url=product_data.get("image_url"),
                     web_sources=web_sources,
                     reddit_mentions=product_data.get("reddit_mentions"),
                     professional_reviews=product_data.get("professional_reviews", []),
-                    maintenance_level=product_data.get("maintenance_level", "Medium"),
+                    maintenance_level=maintenance_level,
                     purchase_links=product_data.get("purchase_links", []),
                     environmental_warnings=product_data.get("environmental_warnings"),
                     best_for=product_data.get("best_for", ""),
-                    trade_offs=trade_offs
+                    drawbacks=drawbacks
                 )
 
                 parsed_products.append(product)

@@ -121,6 +121,8 @@ class Product(BaseModel):
     key_features: List[str] = Field(..., description="Top 3-5 features", min_length=1)
     materials: List[str] = Field(default_factory=list)
     why_its_a_gem: str = Field(..., description="What makes it special from web research")
+    key_differentiator: Optional[str] = Field(None, description="What makes THIS product special vs competitors in the same tier")
+    image_url: Optional[str] = Field(None, description="Product image URL from web search")
 
     # Web research findings
     web_sources: List[WebSource] = Field(..., description="Sources from Google Search")
@@ -135,8 +137,8 @@ class Product(BaseModel):
     environmental_warnings: Optional[List[str]] = None
     best_for: str = Field(..., description="Life stage/use case match")
 
-    # Trade-offs
-    trade_offs: Optional[List[str]] = Field(default_factory=list, description="Honest drawbacks")
+    # Drawbacks (honest cons)
+    drawbacks: Optional[List[str]] = Field(default_factory=list, description="Honest drawbacks")
 
 
 class ProductTier(BaseModel):

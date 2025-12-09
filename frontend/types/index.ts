@@ -55,6 +55,8 @@ export interface Product {
   key_features: string[]
   materials: string[]
   why_its_a_gem: string
+  key_differentiator?: string | null // What makes THIS product special vs competitors
+  image_url?: string | null // Product image URL from web search
   web_sources: WebSource[]
   reddit_mentions?: number | null
   professional_reviews: string[]
@@ -62,7 +64,7 @@ export interface Product {
   purchase_links: Array<{name: string, url: string}>
   environmental_warnings?: string[] | null
   best_for: string
-  trade_offs: string[]
+  drawbacks: string[]
 }
 
 export interface ProductTier {

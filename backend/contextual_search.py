@@ -426,7 +426,7 @@ Each product must include:
 - characteristics (5-8 normalized attributes)
 - key_features, why_its_a_gem
 - web_sources (MUST include sources that mention durability/lifespan)
-- maintenance_level, best_for, trade_offs
+- maintenance_level, best_for, drawbacks
 - practical_metrics (cleaning_time, setup_time, learning_curve, weight, etc.)
 - context_fit (how well it matches the user's specific use case)
 

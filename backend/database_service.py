@@ -204,7 +204,7 @@ class DatabaseService:
                 web_sources=web_sources,
                 maintenance_level=product_data.get("maintenance_level", "Medium"),
                 best_for=product_data.get("best_for", ""),
-                trade_offs=product_data.get("trade_offs", [])
+                drawbacks=product_data.get("drawbacks", product_data.get("trade_offs", []))  # Support both old and new field names
             )
 
             if tier == "good":
@@ -391,7 +391,7 @@ class DatabaseService:
                         "key_features": product.key_features,
                         "materials": product.materials,
                         "characteristics": product.characteristics,
-                        "trade_offs": product.trade_offs or [],
+                        "drawbacks": product.drawbacks or [],  # Updated field name
                         "best_for": product.best_for,
                         "web_sources": web_sources_json,
                         "maintenance_level": product.maintenance_level,
@@ -499,7 +499,7 @@ class DatabaseService:
                     web_sources=web_sources,
                     maintenance_level=product_data.get("maintenance_level", "Medium"),
                     best_for=product_data.get("best_for", ""),
-                    trade_offs=product_data.get("trade_offs", [])
+                    drawbacks=product_data.get("drawbacks", product_data.get("trade_offs", []))  # Support both old and new field names
                 )
                 products.append(product)
 

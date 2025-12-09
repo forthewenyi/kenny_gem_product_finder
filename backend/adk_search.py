@@ -183,11 +183,14 @@ Examples of parallel calls:
 
 After all searches complete, extract products and return JSON. If prices are missing, estimate: Budget=$15-50, Mid=$50-150, Premium=$150-400.
 
-Extract these 15 fields for each product:
+IMPORTANT: Each search result contains an "image_url" field. You MUST extract and include this field for every product.
+
+Extract these 16 fields for each product:
 - name, brand, category (e.g., "cast iron skillet", "chef's knife", "dutch oven"), materials (array), key_features (array), key_differentiator (string), why_its_a_gem (string)
 - maintenance_tasks (array), learning_curve (string), drawbacks (array)
 - professional_reviews (array), best_for (string)
 - price (number), lifespan (string like "15-25 years" or "5-10 years"), purchase_links (array of {name, url})
+- image_url (string) - REQUIRED FIELD - Extract from the search result's "image_url" field. Every search result has this field. Do NOT omit this field.
 
 Return JSON with 6-9 products:
 {
@@ -207,7 +210,8 @@ Return JSON with 6-9 products:
       "best_for": "Budget-conscious home cooks who want a durable workhorse for daily cooking",
       "price": 19.99,
       "lifespan": "30+ years",
-      "purchase_links": [{"name": "Amazon", "url": "https://amazon.com/..."}]
+      "purchase_links": [{"name": "Amazon", "url": "https://amazon.com/..."}],
+      "image_url": "https://m.media-amazon.com/images/I/..."
     }
   ]
 }
@@ -232,7 +236,8 @@ Tier by VALUE/PRICE ratio:
 - BETTER: Step-up worth the investment
 - BEST: Exceptional VALUE/PRICE (premium worth it OR budget punching above weight)
 
-For each product, copy ALL 15 fields from product_findings AND add "tier" field. Output ONLY JSON:
+CRITICAL: For each product, copy ALL 16 fields from product_findings (INCLUDING image_url) AND add "tier" field.
+DO NOT OMIT ANY FIELDS. The image_url field is REQUIRED for every product. Output ONLY JSON:
 
 {
   "good_tier": [
@@ -252,17 +257,18 @@ For each product, copy ALL 15 fields from product_findings AND add "tier" field.
       "best_for": "Budget home cooks",
       "price": 19.99,
       "lifespan": "30+ years",
-      "purchase_links": [{"name": "Amazon", "url": "https://..."}]
+      "purchase_links": [{"name": "Amazon", "url": "https://..."}],
+      "image_url": "https://m.media-amazon.com/images/..."
     }
   ],
-  "better_tier": [products with ALL 15 fields + tier="better"],
-  "best_tier": [products with ALL 15 fields + tier="best"],
+  "better_tier": [products with ALL 16 fields + tier="better"],
+  "best_tier": [products with ALL 16 fields + tier="best"],
   "key_insights": ["Based on context research, users should prioritize..."],
   "what_to_avoid": ["Common issue to avoid..."]
 }
 
 For each product:
-1. Copy ALL 15 fields from product_findings exactly as they appear
+1. Copy ALL 16 fields from product_findings exactly as they appear (including image_url)
 2. Add "tier" field matching the tier they're assigned to ("good", "better", or "best")
 3. Place in appropriate tier array based on VALUE vs PRICE ratio
 
@@ -464,6 +470,7 @@ Output ONLY the JSON - no markdown blocks, no explanations.
                     result_text = result_text.split("```")[1].split("```")[0]
 
                 result = json.loads(result_text.strip())
+
             except json.JSONDecodeError:
                 # If not JSON, wrap in structure
                 result = {

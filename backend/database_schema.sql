@@ -4,20 +4,26 @@
 -- Products table - cache of product data
 CREATE TABLE IF NOT EXISTS products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_name TEXT NOT NULL,
+    name TEXT NOT NULL,  -- Fixed: actual column name is 'name', not 'product_name'
     brand TEXT,
     price DECIMAL(10, 2) NOT NULL,
-    expected_lifespan_years INTEGER NOT NULL,
+    expected_lifespan_years DECIMAL(10, 2) NOT NULL,  -- Fixed: uses DECIMAL to support ranges like 15.5
     tier TEXT NOT NULL CHECK (tier IN ('good', 'better', 'best')),
     cost_per_year DECIMAL(10, 2),
     cost_per_day DECIMAL(10, 4),
-    why_gem TEXT,
+    why_its_a_gem TEXT,  -- Fixed: actual column name
     key_features JSONB DEFAULT '[]'::jsonb,
-    trade_offs TEXT,
+    materials JSONB DEFAULT '[]'::jsonb,  -- Added: missing from original schema
+    characteristics JSONB DEFAULT '[]'::jsonb,  -- Added: missing from original schema
+    drawbacks JSONB DEFAULT '[]'::jsonb,  -- Fixed: JSONB array, renamed from trade_offs
     best_for TEXT,
     web_sources JSONB DEFAULT '[]'::jsonb,
     maintenance_level TEXT,
     category TEXT,
+    quality_data JSONB,  -- Added: quality metrics
+    practical_metrics JSONB,  -- Added: practical usage metrics
+    professional_reviews JSONB DEFAULT '[]'::jsonb,  -- Added: missing field
+    purchase_links JSONB DEFAULT '[]'::jsonb,  -- Added: missing field
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -77,6 +83,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to auto-update updated_at
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
 CREATE TRIGGER update_products_updated_at
     BEFORE UPDATE ON products
     FOR EACH ROW

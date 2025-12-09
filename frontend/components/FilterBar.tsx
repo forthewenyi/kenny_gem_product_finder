@@ -26,10 +26,6 @@ interface FilterBarProps {
   maxPrice?: number
   onMaxPriceChange: (price: number | undefined) => void
 
-  // Cost per year
-  maxCostPerYear?: number
-  onMaxCostPerYearChange: (cost: number | undefined) => void
-
   // Clear all
   onClearAll: () => void
 }
@@ -46,8 +42,6 @@ export default function FilterBar({
   onToggleMaterial,
   maxPrice,
   onMaxPriceChange,
-  maxCostPerYear,
-  onMaxCostPerYearChange,
   onClearAll
 }: FilterBarProps) {
   const [openSection, setOpenSection] = useState<string | null>(null)
@@ -62,25 +56,18 @@ export default function FilterBar({
   const minPrice = Math.min(...prices)
   const maxPriceAvailable = Math.max(...prices)
 
-  // Get cost per year range
-  const costs = products.map(p => p.value_metrics.cost_per_year)
-  const minCost = Math.min(...costs)
-  const maxCostAvailable = Math.max(...costs)
-
   // Check if any filters are active
   const hasFilters = selectedCharacteristics.length > 0 ||
                     selectedBrands.length > 0 ||
                     selectedTiers.length > 0 ||
                     selectedMaterials.length > 0 ||
-                    maxPrice !== undefined ||
-                    maxCostPerYear !== undefined
+                    maxPrice !== undefined
 
   const totalFilterCount = selectedCharacteristics.length +
                           selectedBrands.length +
                           selectedTiers.length +
                           selectedMaterials.length +
-                          (maxPrice !== undefined ? 1 : 0) +
-                          (maxCostPerYear !== undefined ? 1 : 0)
+                          (maxPrice !== undefined ? 1 : 0)
 
   return (
     <div className="max-w-[1400px] mx-auto px-10 mb-6">
@@ -127,13 +114,6 @@ export default function FilterBar({
                 className="text-xs uppercase tracking-wide px-2 py-1 border border-black hover:bg-black hover:text-white transition-colors"
               >
                 Features {selectedCharacteristics.length > 0 && `(${selectedCharacteristics.length})`}
-              </button>
-
-              <button
-                onClick={() => setOpenSection(openSection === 'cost' ? null : 'cost')}
-                className="text-xs uppercase tracking-wide px-2 py-1 border border-black hover:bg-black hover:text-white transition-colors"
-              >
-                Cost/Year {maxCostPerYear !== undefined && '✓'}
               </button>
             </div>
           </div>
@@ -260,37 +240,6 @@ export default function FilterBar({
           </div>
         )}
 
-        {openSection === 'cost' && (
-          <div className="p-4 border-b border-black">
-            <div className="space-y-3">
-              <div className="text-xs uppercase tracking-wide font-semibold">
-                Maximum Cost/Year: {maxCostPerYear ? `$${Math.round(maxCostPerYear)}` : 'Any'}
-              </div>
-              <input
-                type="range"
-                min={minCost}
-                max={maxCostAvailable}
-                step="1"
-                value={maxCostPerYear || maxCostAvailable}
-                onChange={(e) => onMaxCostPerYearChange(Number(e.target.value))}
-                className="w-full"
-              />
-              <div className="flex justify-between text-[10px] uppercase tracking-wide">
-                <span>${Math.round(minCost)}/yr</span>
-                <span>${Math.round(maxCostAvailable)}/yr</span>
-              </div>
-              {maxCostPerYear !== undefined && (
-                <button
-                  onClick={() => onMaxCostPerYearChange(undefined)}
-                  className="text-xs uppercase tracking-wide border border-black px-3 py-1 hover:bg-black hover:text-white transition-colors"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Active Filters Display */}
         {hasFilters && (
           <div className="p-4">
@@ -342,15 +291,6 @@ export default function FilterBar({
                   className="border border-black px-3 py-1 text-xs uppercase tracking-wide hover:bg-black hover:text-white transition-colors flex items-center gap-2"
                 >
                   <span>Max ${Math.round(maxPrice)}</span>
-                  <span>×</span>
-                </button>
-              )}
-              {maxCostPerYear !== undefined && (
-                <button
-                  onClick={() => onMaxCostPerYearChange(undefined)}
-                  className="border border-black px-3 py-1 text-xs uppercase tracking-wide hover:bg-black hover:text-white transition-colors flex items-center gap-2"
-                >
-                  <span>Max ${Math.round(maxCostPerYear)}/yr</span>
                   <span>×</span>
                 </button>
               )}

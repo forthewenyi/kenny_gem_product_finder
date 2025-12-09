@@ -78,17 +78,14 @@ Features:
 - Kenny's Pick highlighting (best value in Better tier)
 
 ### 5. Comparison View
-- **Streamlined Layout**: 7 consolidated sections (down from 12)
+- **VALUE Framework Organization**: 4 sections aligned with product evaluation criteria
 - **No Duplicates**: Single source of truth for price, lifespan, recommendations
 - Apple-style side-by-side comparison (up to 3 products)
 - Sections:
-  1. Value at a Glance (price, lifespan, why it's recommended)
-  2. Quality & Durability (scores, repairability, failure points)
-  3. Key Features (characteristics + materials combined)
-  4. Practical Use (cleaning, setup, learning curve, maintenance)
-  5. Considerations (best for + trade-offs)
-  6. User Reviews Summary (key insights + sources)
-  7. Where to Buy (purchase links with hover tooltips)
+  1. 🔨 **PRODUCT** (Physical Quality & What You Get): brand, materials, key_features, why_its_a_gem, quality metrics
+  2. 🛠️ **SERVICE** (Support & Usability Over Time): learning_curve, maintenance, honest drawbacks
+  3. 💎 **EQUITY** (Trust & Long-term Value Retention): professional_reviews, best_for
+  4. 💰 **PRICE & ACTION**: value breakdown (price, lifespan, cost/year, cost/day), purchase links
 
 ## Development
 
@@ -114,6 +111,18 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ## Recent Changes
+
+### Nov 5, 2025 - VALUE Framework Comparison Reorganization
+**Updated:**
+- ✅ **Comparison Section Reorganization** (`app/HomePageContent.tsx:424-663`)
+  - Reorganized from 7 sections into 4 VALUE framework sections
+  - 🔨 **PRODUCT**: brand, materials, key_features, why_its_a_gem, quality metrics
+  - 🛠️ **SERVICE**: learning_curve, maintenance, honest drawbacks (renamed from trade-offs)
+  - 💎 **EQUITY**: professional_reviews (now displayed!), best_for
+  - 💰 **PRICE & ACTION**: value breakdown, purchase links
+- ✅ **Added Professional Reviews**: Now displayed in EQUITY section (was missing in previous version)
+- ✅ **Renamed "Trade-offs" → "Honest Drawbacks"**: More transparent terminology
+- ✅ **Supports both field names**: Uses `drawbacks` field with fallback to `trade_offs` for backward compatibility
 
 ### Nov 4, 2024 - Product Detail Modal & Comparison Reorganization
 **Added:**

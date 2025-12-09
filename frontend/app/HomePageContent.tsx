@@ -434,7 +434,7 @@ export default function HomePageContent() {
                 // Generate star rating
                 const getStars = (score: number) => {
                   const starsOutOf5 = (score / 100) * 5
-                  const fullStars = Math.round(starsOutOf5)
+                  const fullStars = Math.round(starsOutOf5)  // Round to nearest whole star
                   let stars = '★'.repeat(fullStars)
                   const emptyStars = 5 - fullStars
                   stars += '☆'.repeat(emptyStars)
@@ -474,31 +474,25 @@ export default function HomePageContent() {
 
             {/* Comparison Rows - VALUE Framework Order */}
             {/* Updated Nov 5: Reorganized to PRODUCT → SERVICE → EQUITY → PRICE & ACTION */}
-            {/* Force recompile */}
+            {/* Single column containers with internal dividers for cleaner layout */}
             <div className="mt-12 bg-white space-y-6">
               {/* 1. PRODUCT */}
               <div className="border-t pt-6">
                 <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">PRODUCT</h3>
 
-                {/* Brand Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4">
+                <div className="grid grid-cols-3 gap-4">
+                  {compareProducts.map((product, idx) => (
+                    <div key={idx} className="bg-[#f8f8f8] p-4">
+                      {/* Brand */}
+                      <div className="pb-3 border-b border-gray-200">
                         <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">Brand:</div>
                         <div className="text-sm font-medium text-gray-900">
                           {product.brand || 'Unknown Brand'}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Materials Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                      {/* Materials */}
+                      <div className="py-3 border-b border-gray-200">
                         <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">Materials:</div>
                         <div className="space-y-1">
                           {product.materials && product.materials.length > 0 ? (
@@ -510,15 +504,9 @@ export default function HomePageContent() {
                           )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Key Features Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[100px]">
+                      {/* Key Features */}
+                      <div className="py-3 border-b border-gray-200">
                         <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">Key Features:</div>
                         <div className="space-y-1">
                           {product.key_features && product.key_features.length > 0 ? (
@@ -530,29 +518,17 @@ export default function HomePageContent() {
                           )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Why It's a Gem Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                      {/* Why It's a Gem */}
+                      <div className="py-3 border-b border-gray-200">
                         <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">Why It's a Gem:</div>
                         <div className="text-xs text-gray-700 leading-relaxed">
                           {product.why_its_a_gem || 'High-quality, value-focused option'}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* What Sets It Apart Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className={product.key_differentiator ? "bg-blue-50 border border-blue-200 p-4 min-h-[80px]" : "bg-[#f8f8f8] p-4 min-h-[80px]"}>
+                      {/* What Sets It Apart */}
+                      <div className={product.key_differentiator ? "py-3 bg-blue-50 -mx-4 px-4 border-y border-blue-200" : "py-3"}>
                         {product.key_differentiator ? (
                           <>
                             <div className="text-xs text-blue-900 uppercase mb-1 font-semibold flex items-center gap-1">
@@ -573,8 +549,8 @@ export default function HomePageContent() {
                           </>
                         )}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -582,11 +558,11 @@ export default function HomePageContent() {
               <div className="border-t pt-6">
                 <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">SERVICE</h3>
 
-                {/* Learning Curve Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                <div className="grid grid-cols-3 gap-4">
+                  {compareProducts.map((product, idx) => (
+                    <div key={idx} className="bg-[#f8f8f8] p-4">
+                      {/* Learning Curve */}
+                      <div className="pb-3 border-b border-gray-200">
                         <div className="flex items-center justify-between mb-1">
                           <div className="text-xs font-semibold text-gray-700">📚 Learning Curve</div>
                           <div className="text-xs font-bold text-gray-900">
@@ -597,15 +573,9 @@ export default function HomePageContent() {
                           {product.practical_metrics?.learning_details || 'Easy to start using right away'}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Maintenance Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                      {/* Maintenance */}
+                      <div className="py-3 border-b border-gray-200">
                         <div className="flex items-center justify-between mb-1">
                           <div className="text-xs font-semibold text-gray-700">🔧 Maintenance</div>
                           <div className="text-xs font-bold text-gray-900">
@@ -616,15 +586,9 @@ export default function HomePageContent() {
                           {product.practical_metrics?.maintenance_details || 'Regular care required to maintain performance'}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Honest Drawbacks Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[80px]">
+                      {/* Honest Drawbacks */}
+                      <div className="py-3">
                         <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">⚠ Honest Drawbacks:</div>
                         <div className="space-y-1">
                           {((product.drawbacks && product.drawbacks.length > 0) || (product.trade_offs && product.trade_offs.length > 0)) ? (
@@ -636,8 +600,8 @@ export default function HomePageContent() {
                           )}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -645,11 +609,11 @@ export default function HomePageContent() {
               <div className="border-t pt-6">
                 <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">EQUITY</h3>
 
-                {/* Professional Reviews Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[120px]">
+                <div className="grid grid-cols-3 gap-4">
+                  {compareProducts.map((product, idx) => (
+                    <div key={idx} className="bg-[#f8f8f8] p-4">
+                      {/* Professional Reviews */}
+                      <div className="pb-3 border-b border-gray-200">
                         <div className="text-xs text-gray-500 uppercase mb-2 font-semibold">Professional Reviews:</div>
                         <div className="space-y-2">
                           {product.professional_reviews && product.professional_reviews.length > 0 ? (
@@ -676,22 +640,16 @@ export default function HomePageContent() {
                           )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Best For Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[60px]">
+                      {/* Best For */}
+                      <div className="py-3">
                         <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">✓ Best For:</div>
                         <p className="text-xs text-gray-700 leading-relaxed">
                           {product.best_for || 'Not specified'}
                         </p>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -699,11 +657,11 @@ export default function HomePageContent() {
               <div className="border-t pt-6 pb-6">
                 <h3 className="text-xs uppercase tracking-wide text-gray-500 mb-4 font-semibold">PRICE</h3>
 
-                {/* Value Breakdown Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4 min-h-[120px]">
+                <div className="grid grid-cols-3 gap-4">
+                  {compareProducts.map((product, idx) => (
+                    <div key={idx} className="bg-[#f8f8f8] p-4">
+                      {/* Value Breakdown */}
+                      <div className="pb-3 border-b border-gray-200">
                         <div className="text-xs text-gray-500 uppercase mb-2 font-semibold">Value Breakdown:</div>
                         {product.value_metrics && (
                           <div className="space-y-2">
@@ -728,15 +686,9 @@ export default function HomePageContent() {
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Purchase Links Row */}
-                <div className="mb-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    {compareProducts.map((product, idx) => (
-                      <div key={idx} className="bg-[#f8f8f8] p-4">
+                      {/* Purchase Links */}
+                      <div className="py-3">
                         <div className="text-xs text-gray-500 uppercase mb-2 font-semibold">Where to Buy:</div>
                         {product.purchase_links && product.purchase_links.length > 0 ? (
                           <a
@@ -753,8 +705,8 @@ export default function HomePageContent() {
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

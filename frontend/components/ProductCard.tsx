@@ -40,18 +40,17 @@ export default function ProductCard({
     }
   }
 
-  // Generate star rating from quality score
+  // Generate star rating from value score (quality_data.score is actually the VALUE score)
   const getStars = (score: number) => {
-    const fullStars = Math.floor((score / 100) * 5)
-    const hasHalfStar = (score / 100) * 5 - fullStars >= 0.5
+    const starsOutOf5 = (score / 100) * 5
+    const fullStars = Math.round(starsOutOf5)  // Round to nearest whole star
     let stars = '★'.repeat(fullStars)
-    if (hasHalfStar) stars += '☆'
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0)
+    const emptyStars = 5 - fullStars
     stars += '☆'.repeat(emptyStars)
     return stars
   }
 
-  const qualityScore = product.quality_data?.score || 0
+  const valueScore = product.quality_data?.score || 0
 
   return (
     <div
@@ -88,21 +87,36 @@ export default function ProductCard({
 
       {/* Image Container */}
       <div className="relative w-full bg-[#f8f8f8] overflow-hidden" style={{ paddingBottom: '118.9%' }}>
-        {/* Primary Image */}
-        <img
-          src="https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&auto=format&fit=crop"
-          alt={product.name}
-          className="absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-300"
-          style={{ opacity: isHovering ? 0 : 1 }}
-        />
-
-        {/* Secondary Image - Shows on Hover */}
-        <img
-          src="https://images.unsplash.com/photo-1585515320310-259814833e62?w=800&auto=format&fit=crop"
-          alt={`${product.name} detail`}
-          className="absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-300"
-          style={{ opacity: isHovering ? 1 : 0 }}
-        />
+        {product.image_url ? (
+          /* Product Image from Search Results */
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="absolute top-0 left-0 w-full h-full object-contain p-4 transition-transform duration-300"
+            style={{ transform: isHovering ? 'scale(1.05)' : 'scale(1)' }}
+            onError={(e) => {
+              // Fallback to placeholder if image fails to load
+              e.currentTarget.style.display = 'none'
+              e.currentTarget.parentElement!.classList.add('flex', 'items-center', 'justify-center')
+              e.currentTarget.parentElement!.innerHTML = `
+                <div class="flex flex-col items-center justify-center gap-3 text-gray-400">
+                  <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span class="text-xs text-gray-500">${product.brand}</span>
+                </div>
+              `
+            }}
+          />
+        ) : (
+          /* Placeholder when no image URL available */
+          <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center gap-3 text-gray-400">
+            <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-xs text-gray-500">{product.brand}</span>
+          </div>
+        )}
 
         {/* "Select to Compare" Button - Shows on Hover */}
         {comparisonMode && (
@@ -132,10 +146,10 @@ export default function ProductCard({
           <span className="text-[#79786c] text-xs">• ${product.value_metrics.cost_per_year}/year</span>
         </div>
 
-        {/* Quality */}
+        {/* Value Score */}
         <div className="flex items-center gap-1.5 text-xs text-[#79786c]">
-          <span className="text-[#fbbf24] text-sm">{getStars(qualityScore)}</span>
-          <span>Quality: <span className="text-black font-semibold text-sm">{(qualityScore / 10).toFixed(1)}</span></span>
+          <span className="text-[#fbbf24] text-sm">{getStars(valueScore)}</span>
+          <span>Value: <span className="text-black font-semibold text-sm">{(valueScore / 10).toFixed(1)}</span></span>
         </div>
 
         {/* Tier Badge */}

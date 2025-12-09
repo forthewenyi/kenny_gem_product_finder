@@ -85,11 +85,29 @@ class GoogleSearchService:
             # Parse results
             if "items" in response:
                 for item in response["items"]:
+                    # Extract image URL with priority order
+                    image_url = None
+                    if "pagemap" in item:
+                        pagemap = item["pagemap"]
+
+                        # Priority 1: Open Graph image (best quality)
+                        if "metatags" in pagemap and pagemap["metatags"]:
+                            image_url = pagemap["metatags"][0].get("og:image")
+
+                        # Priority 2: CSE image (good fallback)
+                        if not image_url and "cse_image" in pagemap:
+                            image_url = pagemap["cse_image"][0].get("src")
+
+                        # Priority 3: CSE thumbnail (last resort)
+                        if not image_url and "cse_thumbnail" in pagemap:
+                            image_url = pagemap["cse_thumbnail"][0].get("src")
+
                     results.append({
                         "url": item.get("link", ""),
                         "title": item.get("title", ""),
                         "snippet": item.get("snippet", ""),
-                        "display_link": item.get("displayLink", "")
+                        "display_link": item.get("displayLink", ""),
+                        "image_url": image_url
                     })
 
             return results
@@ -152,11 +170,29 @@ class GoogleSearchService:
             results = []
             if "items" in data:
                 for item in data["items"]:
+                    # Extract image URL with priority order
+                    image_url = None
+                    if "pagemap" in item:
+                        pagemap = item["pagemap"]
+
+                        # Priority 1: Open Graph image (best quality)
+                        if "metatags" in pagemap and pagemap["metatags"]:
+                            image_url = pagemap["metatags"][0].get("og:image")
+
+                        # Priority 2: CSE image (good fallback)
+                        if not image_url and "cse_image" in pagemap:
+                            image_url = pagemap["cse_image"][0].get("src")
+
+                        # Priority 3: CSE thumbnail (last resort)
+                        if not image_url and "cse_thumbnail" in pagemap:
+                            image_url = pagemap["cse_thumbnail"][0].get("src")
+
                     results.append({
                         "url": item.get("link", ""),
                         "title": item.get("title", ""),
                         "snippet": item.get("snippet", ""),
-                        "display_link": item.get("displayLink", "")
+                        "display_link": item.get("displayLink", ""),
+                        "image_url": image_url
                     })
 
             return results

@@ -39,7 +39,7 @@ class PopularSearchService:
 
         Args:
             query_term: The search term (e.g., "Cast Iron Skillet")
-            category: Category (cookware, knives, or bakeware)
+            category: Category (cookware, knives, bakeware, small_appliances, or kitchen_tools)
 
         Returns:
             bool: True if tracking succeeded
@@ -49,7 +49,7 @@ class PopularSearchService:
             query_term = query_term.strip()
 
             # Validate category
-            if category not in ['cookware', 'knives', 'bakeware']:
+            if category not in ['cookware', 'knives', 'bakeware', 'small_appliances', 'kitchen_tools']:
                 return False
 
             # Try to fetch existing record
@@ -91,7 +91,7 @@ class PopularSearchService:
         Get top N popular searches for a category
 
         Args:
-            category: Category (cookware, knives, or bakeware)
+            category: Category (cookware, knives, bakeware, small_appliances, or kitchen_tools)
             limit: Maximum number of results to return
 
         Returns:

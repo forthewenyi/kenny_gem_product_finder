@@ -251,7 +251,7 @@ class QualityScorer:
 
     def calculate_material_quality_score(self, materials: list[str],
                                         material_score_raw: Optional[int] = None,
-                                        why_gem: Optional[str] = None,
+                                        why_its_a_gem: Optional[str] = None,
                                         tier: str = "better") -> tuple[int, Dict]:
         """
         Calculate material quality score (0-15 points)
@@ -319,9 +319,9 @@ class QualityScorer:
                     raw_score = 40
                     material_grades.append({"material": "Unknown", "quality": "Standard (estimated)"})
 
-            # Boost score if "why_gem" mentions quality construction
-            if why_gem:
-                why_lower = why_gem.lower()
+            # Boost score if "why_its_a_gem" mentions quality construction
+            if why_its_a_gem:
+                why_lower = why_its_a_gem.lower()
                 quality_indicators = ["professional-grade", "commercial quality", "heirloom", "lifetime warranty"]
                 if any(indicator in why_lower for indicator in quality_indicators):
                     raw_score = min(raw_score + 10, 100)
@@ -365,7 +365,7 @@ class QualityScorer:
                 - repairability_info (optional)
                 - maintenance_level (optional)
                 - materials (optional list)
-                - why_gem (optional)
+                - why_its_a_gem (optional)
                 - tier (optional)
 
         Returns:
@@ -395,7 +395,7 @@ class QualityScorer:
         material_score, material_data = self.calculate_material_quality_score(
             materials=product_data.get("materials", []),
             material_score_raw=None,
-            why_gem=product_data.get("why_gem"),
+            why_its_a_gem=product_data.get("why_its_a_gem"),
             tier=product_data.get("tier", "better")
         )
 
