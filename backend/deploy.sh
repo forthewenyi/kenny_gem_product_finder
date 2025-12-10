@@ -90,8 +90,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --timeout "$TIMEOUT" \
   --memory "$MEMORY" \
   --cpu "$CPU" \
-  --set-env-vars "ENVIRONMENT=production,CACHE_ENABLED=false" \
-  --set-secrets="GEMINI_API_KEY=${GEMINI_API_KEY_SECRET}:latest" \
+  --set-env-vars "ENVIRONMENT=production,CACHE_ENABLED=false,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${REGION},GOOGLE_GENAI_USE_VERTEXAI=true" \
+  --set-secrets="GOOGLE_API_KEY=${GEMINI_API_KEY_SECRET}:latest" \
   --set-secrets="GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY_SECRET}:latest" \
   --set-secrets="GOOGLE_SEARCH_ENGINE_ID=${GOOGLE_SEARCH_ENGINE_ID_SECRET}:latest" \
   --set-secrets="PORTFOLIO_ACCESS_PASSWORD=${PORTFOLIO_PASSWORD_SECRET}:latest" \

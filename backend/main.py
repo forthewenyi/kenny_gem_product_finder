@@ -209,6 +209,23 @@ async def health_check():
     )
 
 
+@app.get("/debug/env")
+async def debug_env():
+    """DEBUG ENDPOINT: Check if environment variables are loaded (remove after debugging)"""
+    password = os.getenv("PORTFOLIO_ACCESS_PASSWORD")
+    jwt_secret = os.getenv("JWT_SECRET_KEY")
+
+    return {
+        "portfolio_password_set": password is not None,
+        "portfolio_password_length": len(password) if password else 0,
+        "portfolio_password_first3": password[:3] if password else None,
+        "jwt_secret_set": jwt_secret is not None,
+        "jwt_secret_length": len(jwt_secret) if jwt_secret else 0,
+        "environment": os.getenv("ENVIRONMENT"),
+        "all_env_vars": list(os.environ.keys())
+    }
+
+
 # ============================================================================
 # AUTHENTICATION ENDPOINTS (for password-protected portfolio access)
 # ============================================================================
@@ -1004,20 +1021,31 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
 
 
 # ============================================================================
-# CATCH-ALL ROUTE FOR SPA (must be last!)
+# CATCH-ALL ROUTE FOR STATIC EXPORT (must be last!)
 # ============================================================================
 @app.get("/{full_path:path}")
 async def catch_all(request: Request, full_path: str):
     """
-    Catch-all route for client-side routing.
-    Serves index.html for all routes that don't match API endpoints or static files.
-    This enables Next.js client-side routing to work with static export.
+    Catch-all route for Next.js static export.
+    Tries to serve the specific HTML file for the route, falls back to index.html.
+    This enables both pre-rendered pages and client-side routing.
     """
     # Don't catch API routes, WebSocket, or health check
     if full_path.startswith(("api/", "ws/", "health", "_next/", "static-assets/")):
         raise HTTPException(status_code=404, detail="Not Found")
 
-    # Serve index.html for all other routes (SPA routing)
+    # Try to serve the specific HTML file for this route
+    # e.g., /login → login.html
+    html_file = FRONTEND_BUILD_DIR / f"{full_path}.html"
+    if html_file.exists() and html_file.is_file():
+        return FileResponse(html_file)
+
+    # Try directory index (e.g., /login/ → login/index.html)
+    dir_index = FRONTEND_BUILD_DIR / full_path / "index.html"
+    if dir_index.exists() and dir_index.is_file():
+        return FileResponse(dir_index)
+
+    # Fall back to root index.html for client-side routing
     index_path = FRONTEND_BUILD_DIR / "index.html"
     if index_path.exists():
         return FileResponse(index_path)
