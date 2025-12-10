@@ -142,7 +142,7 @@ export default function Header({ onNavigate, onSearch }: HeaderProps) {
 
 // Mobile Category Section Component
 interface MobileCategorySectionProps {
-  category: string
+  category: 'cookware' | 'knives' | 'bakeware' | 'small_appliances' | 'kitchen_tools'
   label: string
   isExpanded: boolean
   onToggle: () => void

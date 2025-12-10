@@ -26,6 +26,10 @@ interface FilterBarProps {
   maxPrice?: number
   onMaxPriceChange: (price: number | undefined) => void
 
+  // Cost per year
+  maxCostPerYear?: number
+  onMaxCostPerYearChange: (cost: number | undefined) => void
+
   // Clear all
   onClearAll: () => void
 }
@@ -42,6 +46,8 @@ export default function FilterBar({
   onToggleMaterial,
   maxPrice,
   onMaxPriceChange,
+  maxCostPerYear,
+  onMaxCostPerYearChange,
   onClearAll
 }: FilterBarProps) {
   const [openSection, setOpenSection] = useState<string | null>(null)
@@ -61,13 +67,15 @@ export default function FilterBar({
                     selectedBrands.length > 0 ||
                     selectedTiers.length > 0 ||
                     selectedMaterials.length > 0 ||
-                    maxPrice !== undefined
+                    maxPrice !== undefined ||
+                    maxCostPerYear !== undefined
 
   const totalFilterCount = selectedCharacteristics.length +
                           selectedBrands.length +
                           selectedTiers.length +
                           selectedMaterials.length +
-                          (maxPrice !== undefined ? 1 : 0)
+                          (maxPrice !== undefined ? 1 : 0) +
+                          (maxCostPerYear !== undefined ? 1 : 0)
 
   return (
     <div className="max-w-[1400px] mx-auto px-10 mb-6">

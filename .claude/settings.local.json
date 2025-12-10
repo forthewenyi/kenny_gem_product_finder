@@ -19,7 +19,8 @@
       "Bash(python check_cache.py:*)",
       "Bash(python:*)",
       "Bash(git add:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(source .venv/bin/activate)"
     ],
     "deny": [],
     "ask": []

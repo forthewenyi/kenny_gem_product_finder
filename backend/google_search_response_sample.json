@@ -1,0 +1,181 @@
+{
+  "kind": "customsearch#search",
+  "url": {
+    "type": "application/json",
+    "template": "https://www.googleapis.com/customsearch/v1?q={searchTerms}&num={count?}&start={startIndex?}&lr={language?}&safe={safe?}&cx={cx?}&sort={sort?}&filter={filter?}&gl={gl?}&cr={cr?}&googlehost={googleHost?}&c2coff={disableCnTwTranslation?}&hq={hq?}&hl={hl?}&siteSearch={siteSearch?}&siteSearchFilter={siteSearchFilter?}&exactTerms={exactTerms?}&excludeTerms={excludeTerms?}&linkSite={linkSite?}&orTerms={orTerms?}&dateRestrict={dateRestrict?}&lowRange={lowRange?}&highRange={highRange?}&searchType={searchType}&fileType={fileType?}&rights={rights?}&imgSize={imgSize?}&imgType={imgType?}&imgColorType={imgColorType?}&imgDominantColor={imgDominantColor?}&alt=json"
+  },
+  "queries": {
+    "request": [
+      {
+        "title": "Google Custom Search - Lodge 10.25 inch cast iron skillet amazon",
+        "totalResults": "90900",
+        "searchTerms": "Lodge 10.25 inch cast iron skillet amazon",
+        "count": 3,
+        "startIndex": 1,
+        "inputEncoding": "utf8",
+        "outputEncoding": "utf8",
+        "safe": "off",
+        "cx": "a0c6bdb30a04d4396"
+      }
+    ],
+    "nextPage": [
+      {
+        "title": "Google Custom Search - Lodge 10.25 inch cast iron skillet amazon",
+        "totalResults": "90900",
+        "searchTerms": "Lodge 10.25 inch cast iron skillet amazon",
+        "count": 3,
+        "startIndex": 4,
+        "inputEncoding": "utf8",
+        "outputEncoding": "utf8",
+        "safe": "off",
+        "cx": "a0c6bdb30a04d4396"
+      }
+    ]
+  },
+  "context": {
+    "title": "Kenny Gem Finder"
+  },
+  "searchInformation": {
+    "searchTime": 0.297366,
+    "formattedSearchTime": "0.30",
+    "totalResults": "90900",
+    "formattedTotalResults": "90,900"
+  },
+  "items": [
+    {
+      "kind": "customsearch#result",
+      "title": "Lodge 10.25 Inch Cast Iron Skillet \u2013 Pre-Seasoned ... - Amazon.com",
+      "htmlTitle": "Lodge 10.25 Inch Cast Iron Skillet \u2013 Pre-Seasoned ... - Amazon.com",
+      "link": "https://www.amazon.com/Lodge-Skillet-Pre-Seasoned-Ready-Stove/dp/B00006JSUA",
+      "displayLink": "www.amazon.com",
+      "snippet": "Use to sear, saut\u00e9, bake, broil, braise, fry, or grill. This skillet is safe to use in the oven, on the stove or grill, and over a campfire.",
+      "htmlSnippet": "Use to sear, saut\u00e9, bake, broil, braise, fry, or grill. This <b>skillet</b> is safe to use in the oven, on the stove or grill, and over a campfire.",
+      "formattedUrl": "https://www.amazon.com/Lodge-Skillet-Pre-Seasoned.../B00006JSUA",
+      "htmlFormattedUrl": "https://www.<b>amazon</b>.com/<b>Lodge</b>-<b>Skillet</b>-Pre-Seasoned.../B00006JSUA",
+      "pagemap": {
+        "cse_thumbnail": [
+          {
+            "src": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSfpNx_xz7OYE7ASqsg3WXUq8s4GE_KDcl8DzvjpQf9jtIVelA32z6bz-_j&s",
+            "width": "310",
+            "height": "162"
+          }
+        ],
+        "metatags": [
+          {
+            "og:image": "https://m.media-amazon.com/images/I/01UwfHrld%2BL._TSa%7Csize%3A1910%2C1000%7Cformat%3A%28A%2Cf%2Cb%2Cd%2Cpi%2Cpl%2Co%29%7Cb-src%3A61Cd2rJZgRL.png%7Cb-pos%3A0%2C0%2C1910%2C1000%7Cpi-src%3A61eNv9BXyaL.jpg%7Cpi-pos%3A1000%2C100%2C840%2C840.json",
+            "theme-color": "#131921",
+            "og:type": "product",
+            "og:image:width": "1910",
+            "og:title": "Lodge 10.25 Inch Cast Iron Skillet \u2013 Pre-Seasoned Frying Pan with Teardrop Handle \u2013 Oven, Stovetop, Grill & Campfire Use \u2013 Made in USA \u2013 Durable, Non-Toxic, Even-Heating Cookware \u2013 Black",
+            "og:image:height": "1000",
+            "flow-closure-id": "1765246693",
+            "title": "Amazon.com: Lodge 10.25 Inch Cast Iron Skillet \u2013 Pre-Seasoned Frying Pan with Teardrop Handle \u2013 Oven, Stovetop, Grill & Campfire Use \u2013 Made in USA \u2013 Durable, Non-Toxic, Even-Heating Cookware \u2013 Black: Cast Iron Skillet: Home & Kitchen",
+            "og:description": "What makes this the classic American skillet? Made in the USA for more than 125 years, it's been a staple in kitchens around the world. Crafted in America with iron and oil, its naturally seasoned cooking surface is ready to help you turn your meals into delicious, shareable moments. Cast to last...",
+            "encrypted-slate-token": "AnYxm6ReN/Qn57wdm2kClRa9Gy3PMrKSdnsIgEbHYDoJiE+FO57sc0SY9mqTDiedVu/8VmGO1FiCqgJm93jDk68qYrT1XPoNfLDrdPPy548SCl8LUBWV3O3mLuHmT5xs6D5pXYBOu0NWinIW2vFyoARX3gsOFga07rF5D6Q5WVPX6aLMjn+fNQFXdHLITGHZRLOTV9pOXXPrxIhpE4lS/QJfwGECvAk+KvkbTTcDRRTfs15p0AyB4ku5VNWM/OvdNW+blAM1yANiwLxJiACifai5u6da3Ievtp/jEV5pfgXNBg==",
+            "viewport": "width=device-width, maximum-scale=2, minimum-scale=1, initial-scale=1, shrink-to-fit=no",
+            "og:sitename": "Amazon.com",
+            "og:url": "https://www.amazon.com/dp/B00006JSUA"
+          }
+        ],
+        "cse_image": [
+          {
+            "src": "https://m.media-amazon.com/images/I/01UwfHrld%2BL._TSa%7Csize%3A1910%2C1000%7Cformat%3A%28A%2Cf%2Cb%2Cd%2Cpi%2Cpl%2Co%29%7Cb-src%3A61Cd2rJZgRL.png%7Cb-pos%3A0%2C0%2C1910%2C1000%7Cpi-src%3A61eNv9BXyaL.jpg%7Cpi-pos%3A1000%2C100%2C840%2C840.json"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "customsearch#result",
+      "title": "The 6 Best Cast Iron Skillets of 2025, Tested & Reviewed",
+      "htmlTitle": "The 6 Best <b>Cast Iron Skillets</b> of 2025, Tested &amp; Reviewed",
+      "link": "https://www.seriouseats.com/best-cast-iron-skillet",
+      "displayLink": "www.seriouseats.com",
+      "snippet": "Five saw an average temperature increase of 34% after one minute, while the Lodge Cast Iron Skillet -10.25 inch went up by a whopping 53.4%. The Smithey No.10\u00a0...",
+      "htmlSnippet": "Five saw an average temperature increase of 34% after one minute, while the <b>Lodge Cast Iron Skillet</b> -<b>10.25 inch</b> went up by a whopping 53.4%. The Smithey No.10&nbsp;...",
+      "formattedUrl": "https://www.seriouseats.com/best-cast-iron-skillet",
+      "htmlFormattedUrl": "https://www.seriouseats.com/best-<b>cast</b>-<b>iron</b>-<b>skillet</b>",
+      "pagemap": {
+        "cse_thumbnail": [
+          {
+            "src": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRqsAHta4kHXYK9gLZ2mB5SKSLiwfzbIA3vCLVJuxWn6OR9NETS5F4WtTE&s",
+            "width": "259",
+            "height": "194"
+          }
+        ],
+        "metatags": [
+          {
+            "og:image": "https://www.seriouseats.com/thmb/6DQJvJds9N8QbJIebm7FT3f0PKI=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/__opt__aboutcom__coeus__resources__content_migration__serious_eats__seriouseats.com__2019__10__20191003-cast-iron-skillet-testing-vicky-wasik-primary-1500x1125-5b124e1ba2de4139a1e72df7246222b6.jpg",
+            "twitter:card": "summary",
+            "msapplication-square70x70logo": "/static/8.86.0/icons/favicons/mstile-70x70.png",
+            "sailthru.tags": "equipment,cookware",
+            "og:site_name": "Serious Eats",
+            "revenuegroup": "COMMERCE",
+            "msapplication-wide310x150logo": "/static/8.86.0/icons/favicons/mstile-310x150.png",
+            "msapplication-tileimage": "/static/8.86.0/icons/favicons/mstile-144x144.png",
+            "og:description": "After examining heat conduction, frying dozens of eggs, searing steaks, and baking loads of cornbread, we found six excellent cast iron skillets.",
+            "twitter:image": "https://www.seriouseats.com/thmb/6DQJvJds9N8QbJIebm7FT3f0PKI=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/__opt__aboutcom__coeus__resources__content_migration__serious_eats__seriouseats.com__2019__10__20191003-cast-iron-skillet-testing-vicky-wasik-primary-1500x1125-5b124e1ba2de4139a1e72df7246222b6.jpg",
+            "twitter:site": "@seriouseats",
+            "msapplication-square310x310logo": "/static/8.86.0/icons/favicons/mstile-310x310.png",
+            "emailcontenttype": "STRUCTUREDCONTENT",
+            "parsely-section": "Equipment",
+            "msapplication-tilecolor": "#F4F4F4",
+            "article:section": "Serious Eats",
+            "og:type": "article",
+            "twitter:title": "To Find the Best Cast Iron Skillets, I Seared Steaks, Baked Cornbread, and Fried Dozens of Eggs",
+            "emailvertical": "SERIOUSEATS",
+            "og:title": "To Find the Best Cast Iron Skillets, I Seared Steaks, Baked Cornbread, and Fried Dozens of Eggs",
+            "msapplication-square150x150logo": "/static/8.86.0/icons/favicons/mstile-150x150.png",
+            "article:author": "https://www.facebook.com/seriouseats",
+            "parsely-tags": "Serious Eats,Equipment,Cookware,Basic Kitchen Equipment,affiliate",
+            "viewport": "width=device-width, initial-scale=1.0",
+            "twitter:description": "After examining heat conduction, frying dozens of eggs, searing steaks, and baking loads of cornbread, we found six excellent cast iron skillets.",
+            "og:tax1": "se_equipment",
+            "og:tax2": "se_cookware",
+            "og:tax0": "se",
+            "og:url": "https://www.seriouseats.com/best-cast-iron-skillet",
+            "sailthru.author": "Grace Kelly"
+          }
+        ],
+        "cse_image": [
+          {
+            "src": "https://www.seriouseats.com/thmb/6DQJvJds9N8QbJIebm7FT3f0PKI=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/__opt__aboutcom__coeus__resources__content_migration__serious_eats__seriouseats.com__2019__10__20191003-cast-iron-skillet-testing-vicky-wasik-primary-1500x1125-5b124e1ba2de4139a1e72df7246222b6.jpg"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "customsearch#result",
+      "title": "Lodge - Skillets / Pots & Pans: Home & Kitchen - Amazon.com",
+      "htmlTitle": "Lodge - Skillets / Pots & Pans: Home & Kitchen - Amazon.com",
+      "link": "https://www.amazon.com/Skillets-Lodge-Pots-Pans/s?rh=n%3A289829%2Cp_89%3ALodge",
+      "displayLink": "www.amazon.com",
+      "snippet": "Lodge 10.25 Inch Cast Iron Skillet \u2013 Pre-Seasoned Frying Pan with Teardrop Handle \u2013 Oven, Stovetop, Grill & Campfire Use \u2013 Made in USA \u2013 Durable, Non-Toxic,\u00a0...",
+      "htmlSnippet": "<b>Lodge 10.25 Inch Cast Iron Skillet</b> \u2013 Pre-Seasoned <b>Frying Pan</b> with Teardrop Handle \u2013 Oven, Stovetop, Grill &amp; Campfire Use \u2013 Made in USA \u2013 Durable, Non-Toxic,&nbsp;...",
+      "formattedUrl": "https://www.amazon.com/Skillets-Lodge-Pots-Pans/s?rh...89%3ALodge",
+      "htmlFormattedUrl": "https://www.<b>amazon</b>.com/<b>Skillet</b>s-<b>Lodge</b>-Pots-Pans/s?rh...89%3A<b>Lodge</b>",
+      "pagemap": {
+        "cse_thumbnail": [
+          {
+            "src": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQds-Gquh-B5mOVq0jgrEct5l4LosGmWEneJQePSs1lVRx-QeRc4y9BemZZ&s",
+            "width": "310",
+            "height": "163"
+          }
+        ],
+        "metatags": [
+          {
+            "theme-color": "#131921",
+            "viewport": "width=device-width, maximum-scale=2, minimum-scale=1, initial-scale=1, shrink-to-fit=no",
+            "flow-closure-id": "1765219513",
+            "encrypted-slate-token": "AnYxWYCDTRx8McLyCY9Fc9+UykHxbUJzw7+JT0v1fwLuBcWRhvUhVejWrMTkXRkyDKeTQvoYN3xPeL/d37T4SYbqtcbajTLE28EyMvremOWwqlQocjAoVlM09a4MW2ydlKLFlYSUQkWQohmVifqw1VBmFiJXZp2Y/M0GWriOVTNoHuwEeeaQx/rGbz0w3RGaDV38JNCrZH6bWiEuIWVa2oIQnqTQ8EIZFP7z62P/0wfKr5NEv1W40Mb6VByW8XpJXAddlvKBLqEc18zHyCO8L3BPELo7hao27jmwdeBek+x0BXI=",
+            "anti-csrftoken-a2z": "hDxSg1uzK18tbqKeYZU8NFz03V9inxkWBeHwTt+1uLTgAAAAAGk3KwhiMzZhMzJjYi0zOGM3LTRmYzgtODRlMi1hYTc4NTViOGEyZWU="
+          }
+        ],
+        "cse_image": [
+          {
+            "src": "https://m.media-amazon.com/images/G/01/social_share/amazon_logo._CB635397845_.png"
+          }
+        ]
+      }
+    }
+  ]
+}

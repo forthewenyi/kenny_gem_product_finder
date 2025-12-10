@@ -1,7 +1,10 @@
 import axios from 'axios'
 import type { SearchQuery, SearchResponse, Category, ValueMetrics } from '@/types'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// Use empty string for production (relative URLs on same domain), localhost for development
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL !== undefined
+  ? process.env.NEXT_PUBLIC_API_URL
+  : 'http://localhost:8000'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,6 +13,27 @@ const api = axios.create({
   },
   timeout: 180000, // 3 minutes for comprehensive AI search
 })
+
+// Add auth token to all requests
+api.interceptors.request.use((config) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Redirect to login on 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('access_token')
+      window.location.href = '/login?error=session_expired'
+    }
+    return Promise.reject(error)
+  }
+)
 
 export const searchProducts = async (searchQuery: SearchQuery): Promise<SearchResponse> => {
   const { data } = await api.post<SearchResponse>('/api/search', searchQuery)
@@ -54,7 +78,7 @@ export interface PopularSearchItem {
 }
 
 export const getPopularSearches = async (
-  category: 'cookware' | 'knives' | 'bakeware',
+  category: 'cookware' | 'knives' | 'bakeware' | 'small_appliances' | 'kitchen_tools',
   limit: number = 8
 ): Promise<{ category: string; items: PopularSearchItem[] }> => {
   const { data } = await api.get<{ category: string; items: PopularSearchItem[] }>(
@@ -65,7 +89,7 @@ export const getPopularSearches = async (
 
 export const trackSearch = async (
   query: string,
-  category: 'cookware' | 'knives' | 'bakeware'
+  category: 'cookware' | 'knives' | 'bakeware' | 'small_appliances' | 'kitchen_tools'
 ): Promise<{ success: boolean }> => {
   try {
     const { data } = await api.post<{ success: boolean }>(

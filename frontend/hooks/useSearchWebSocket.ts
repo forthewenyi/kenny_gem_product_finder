@@ -55,8 +55,15 @@ export function useSearchWebSocket(onComplete?: (result: any) => void): UseSearc
 
     // Determine WebSocket URL based on current location
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = process.env.NEXT_PUBLIC_API_URL?.replace('http://', '').replace('https://', '') || 'localhost:8000'
-    const wsUrl = `${protocol}//${host}/ws/search-progress`
+    // Use window.location.host for production (when API_URL is empty), otherwise parse from API_URL
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL !== undefined
+      ? process.env.NEXT_PUBLIC_API_URL
+      : 'http://localhost:8000'
+    const host = apiUrl
+      ? apiUrl.replace('http://', '').replace('https://', '')
+      : window.location.host
+    const token = localStorage.getItem('access_token')
+    const wsUrl = `${protocol}//${host}/ws/search-progress${token ? `?token=${token}` : ''}`
 
     console.log('🔌 Connecting to WebSocket:', wsUrl)
 

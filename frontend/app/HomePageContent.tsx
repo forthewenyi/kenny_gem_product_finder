@@ -591,8 +591,8 @@ export default function HomePageContent() {
                       <div className="py-3">
                         <div className="text-xs text-gray-500 uppercase mb-1 font-semibold">⚠ Honest Drawbacks:</div>
                         <div className="space-y-1">
-                          {((product.drawbacks && product.drawbacks.length > 0) || (product.trade_offs && product.trade_offs.length > 0)) ? (
-                            (product.drawbacks || product.trade_offs || []).map((item, dIdx) => (
+                          {(product.drawbacks && product.drawbacks.length > 0) ? (
+                            product.drawbacks.map((item, dIdx) => (
                               <div key={dIdx} className="text-xs text-gray-600 leading-relaxed">• {item}</div>
                             ))
                           ) : (

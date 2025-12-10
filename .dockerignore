@@ -1,0 +1,91 @@
+# ============================================================================
+# Docker Ignore File for Kenny Gem Finder (Full Stack)
+# Build context includes both frontend and backend directories
+# ============================================================================
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+SESSION_SUMMARY*.md
+ALIGNMENT_SUMMARY.md
+VALUE_FRAMEWORK_ALIGNMENT.md
+IMAGE_EXTRACTION*.md
+PRODUCT_IMAGES_COMPLETE.md
+
+# Environment files (secrets come from Secret Manager)
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.production
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+.Python
+**/*.egg-info/
+**/dist/
+**/build/
+**/.venv/
+**/venv/
+**/env/
+**/ENV/
+
+# Testing
+**/.pytest_cache/
+**/htmlcov/
+**/.coverage
+**/*.cover
+**/.hypothesis/
+**/test_*.py
+**/*_test.py
+
+# IDEs
+.vscode/
+.idea/
+**/*.swp
+**/*.swo
+**/*~
+.DS_Store
+**/.DS_Store
+
+# Backend specific
+backend/google_search_response_sample.json
+backend/*.log
+backend/*.db
+backend/*.sqlite
+backend/*.cache
+backend/static/
+backend/.venv/
+
+# Frontend specific
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/*.log
+frontend/.env.local
+frontend/.env*.local
+
+# Cloud/deployment
+.gcloud/
+.claude/
+
+# Test files
+**/check_*.py
+**/test_*.py
+**/debug_*.py
+**/verify_*.py
+**/update_*.py
+**/rename_*.py
+
+# Scripts (not needed in container)
+backend/setup.sh
+backend/deploy.sh
+backend/build-frontend.sh

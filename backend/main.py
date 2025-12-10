@@ -7,8 +7,12 @@ import time
 import asyncio
 import uuid
 from typing import Dict
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from models import (
@@ -28,6 +32,12 @@ from database_service import DatabaseService
 from quality_scorer import get_quality_scorer, QualityScore as QualityScoreCalc
 from characteristic_generator import get_characteristic_generator
 from popular_search_service import get_popular_search_service
+from auth_middleware import (
+    verify_password,
+    create_access_token,
+    get_current_user,
+    get_optional_user
+)
 
 # Load environment variables
 load_dotenv()
@@ -65,25 +75,59 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============================================================================
+# STATIC FILE SERVING (Frontend)
+# ============================================================================
 
-@app.get("/", response_model=HealthCheckResponse)
-async def root():
-    """Root endpoint - health check"""
-    return HealthCheckResponse(
-        status="healthy",
-        version="0.1.0",
-        environment=os.getenv("ENVIRONMENT", "development")
-    )
+# Path to frontend build output
+FRONTEND_BUILD_DIR = Path(__file__).parent / "static"
+
+# Mount static files (Next.js _next directory with JS bundles, CSS, etc.)
+if (FRONTEND_BUILD_DIR / "_next").exists():
+    app.mount("/_next", StaticFiles(directory=str(FRONTEND_BUILD_DIR / "_next")), name="next-static")
+    print("✅ Serving frontend static files from /static/_next")
+
+# Serve other static assets
+if FRONTEND_BUILD_DIR.exists():
+    app.mount("/static-assets", StaticFiles(directory=str(FRONTEND_BUILD_DIR)), name="static-assets")
+    print(f"✅ Frontend build directory: {FRONTEND_BUILD_DIR}")
+else:
+    print(f"⚠️  Frontend build directory not found: {FRONTEND_BUILD_DIR}")
+    print("   Run 'npm run build' in frontend directory and copy output to backend/static")
+
+
+@app.get("/")
+async def serve_frontend():
+    """Serve the frontend index.html"""
+    index_path = FRONTEND_BUILD_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    else:
+        # Fallback health check if frontend not built
+        return {
+            "status": "healthy",
+            "version": "0.1.0",
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "message": "Frontend not built. Run build-frontend.sh to include frontend."
+        }
 
 
 @app.websocket("/ws/search-progress")
-async def websocket_search_progress(websocket: WebSocket):
+async def websocket_search_progress(websocket: WebSocket, token: str = None):
     """
     WebSocket endpoint for real-time search progress updates.
 
     The client sends a search query, receives a search_id, then gets progress updates
     as the ADK agents research and find products.
+
+    Requires authentication token as query parameter: /ws/search-progress?token=<jwt_token>
     """
+    # Verify authentication token
+    from auth_middleware import verify_token
+    if not token or not verify_token(token):
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
+
     await websocket.accept()
     search_id = str(uuid.uuid4())
 
@@ -165,8 +209,59 @@ async def health_check():
     )
 
 
+# ============================================================================
+# AUTHENTICATION ENDPOINTS (for password-protected portfolio access)
+# ============================================================================
+
+class LoginRequest(BaseModel):
+    """Request model for login endpoint"""
+    password: str
+
+
+class LoginResponse(BaseModel):
+    """Response model for successful login"""
+    access_token: str
+    token_type: str = "bearer"
+    message: str = "Access granted"
+
+
+@app.post("/api/auth/login", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    """
+    Verify access password and return JWT token.
+    This protects the portfolio project from public access.
+    """
+    if not verify_password(request.password):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect access code. Please contact portfolio owner for access."
+        )
+
+    # Create access token
+    access_token = create_access_token(data={"access": "granted"})
+
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        message="Access granted. Welcome to Kenny Gem Finder!"
+    )
+
+
+@app.get("/api/auth/verify")
+async def verify_auth(current_user: dict = Depends(get_current_user)):
+    """
+    Verify if current token is valid.
+    Protected endpoints use this dependency.
+    """
+    return {"authenticated": True, "access": "granted"}
+
+
+# ============================================================================
+# PUBLIC ENDPOINTS
+# ============================================================================
+
 @app.get("/api/categories")
-async def get_categories():
+async def get_categories(current_user: dict = Depends(get_current_user)):
     """Return list of kitchen product categories"""
     return {
         "categories": [
@@ -251,7 +346,7 @@ async def generate_characteristics(query: str, location: str = "US"):
 
 
 @app.get("/api/popular-searches/{category}")
-async def get_popular_searches(category: str, limit: int = 8):
+async def get_popular_searches(category: str, limit: int = 8, current_user: dict = Depends(get_current_user)):
     """
     Get top N most searched items for a category (for dropdown menus)
 
@@ -310,7 +405,7 @@ async def track_search(query: str, category: str):
 
 
 @app.post("/api/search", response_model=SearchResponse)
-async def search_products(query: SearchQuery):
+async def search_products(query: SearchQuery, current_user: dict = Depends(get_current_user)):
     """
     AI-powered search using Google Gemini 2.0 Flash + Google Search.
     Uses contextual AI-driven query generation with 5-phase research framework.
@@ -906,6 +1001,28 @@ def _parse_tier_results(agent_data: dict) -> TierResults:
         better=parse_product_list(agent_data.get("better_tier", [])),
         best=parse_product_list(agent_data.get("best_tier", []))
     )
+
+
+# ============================================================================
+# CATCH-ALL ROUTE FOR SPA (must be last!)
+# ============================================================================
+@app.get("/{full_path:path}")
+async def catch_all(request: Request, full_path: str):
+    """
+    Catch-all route for client-side routing.
+    Serves index.html for all routes that don't match API endpoints or static files.
+    This enables Next.js client-side routing to work with static export.
+    """
+    # Don't catch API routes, WebSocket, or health check
+    if full_path.startswith(("api/", "ws/", "health", "_next/", "static-assets/")):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    # Serve index.html for all other routes (SPA routing)
+    index_path = FRONTEND_BUILD_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    else:
+        raise HTTPException(status_code=404, detail="Frontend not found")
 
 
 if __name__ == "__main__":
